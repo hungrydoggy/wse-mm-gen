@@ -19,6 +19,337 @@ func GenCodeForCrud (
     manyname_modelname_map map[string]string,
 ) {
   genModel(table_name, schema, manyname_modelname_map, "id", "int", "0")
+  genViewModel(table_name, schema, manyname_modelname_map, "id", "int", "0")
+}
+
+func genViewModel (
+    table_name string,
+    schema []table_schema.TableScheme,
+    manyname_modelname_map map[string]string,
+    id_key string,
+    id_type string,
+    em_id string,
+) {
+  vm_name := table_name + "VM"
+
+  f, err := os.Create(fmt.Sprintf("./out/view_models/%s.dart", vm_name))
+  check(err)
+  defer f.Close()
+
+  // import default
+  _, err = f.WriteString(import_str)
+  check(err)
+
+
+  // import model
+  _, err = f.WriteString(
+      fmt.Sprintf("import '../models/%s.dart';\n\n", table_name),
+  )
+  check(err)
+
+
+  // import view models
+  viewmodel_check_map := map[string]bool{}
+  for _, sch := range schema {
+    if sch.FieldType != table_schema.ASSOCIATION {
+      continue
+    }
+    viewmodel_check_map[sch.Association_info.Model_name + "VM"] = true
+  }
+  for _, model_name := range manyname_modelname_map {
+    viewmodel_check_map[model_name + "VM"] = true
+  }
+  for view_model := range viewmodel_check_map {
+    if view_model == table_name + "VM" {
+      continue
+    }
+    _, err = f.WriteString(
+        fmt.Sprintf("import './%s.dart';\n", view_model),
+    )
+    check(err)
+  }
+  _, err = f.WriteString("\n\n")
+  check(err)
+
+
+  // view model head
+  _, err = f.WriteString(
+      fmt.Sprintf("class %s extends ViewModel {\n  %s _id = %s;\n  int get id => _id;\n\n", vm_name, id_type, em_id),
+  )
+  check(err)
+
+
+  // normal properties
+  prop_type_max_len := int(
+      funk.Reduce(
+        schema,
+        func (acc int, sch table_schema.TableScheme) int {
+          return funk.MaxInt([]int{acc, len(convertTypeFromSql(sch.Type))}).(int)
+        },
+        0,
+      ),
+  )
+  for _, sch := range schema {
+    if sch.Field == id_key {
+      continue;
+    }
+    _, err = f.WriteString(
+        fmt.Sprintf(
+          "  VMProperty<%-[1]*[2]s>? _%[3]s;\n",
+          prop_type_max_len,
+          convertTypeFromSql(sch.Type),
+          makePropName(sch.Field),
+        ),
+    )
+    check(err)
+  }
+  _, err = f.WriteString("\n")
+  check(err)
+
+
+  // normal properties getter
+  prop_max_len := int(
+      funk.Reduce(
+        schema,
+        func (acc int, sch table_schema.TableScheme) int {
+          return funk.MaxInt([]int{acc, len(makePropName(sch.Field))}).(int)
+        },
+        0,
+      ),
+  )
+  for _, sch := range schema {
+    if sch.Field == id_key {
+      continue;
+    }
+    _, err = f.WriteString(
+        fmt.Sprintf(
+          "  VMProperty<%-[1]*[2]s>? get %-[3]*[4]s => _%[4]s;\n",
+          prop_type_max_len,
+          convertTypeFromSql(sch.Type),
+          prop_max_len,
+          makePropName(sch.Field),
+        ),
+    )
+    check(err)
+  }
+  _, err = f.WriteString("\n")
+  check(err)
+
+
+  // fk properties
+  fk_model_max_len := int(
+      funk.Reduce(
+        schema,
+        func (acc int, sch table_schema.TableScheme) int {
+          str_len := 0
+          if sch.FieldType == table_schema.ASSOCIATION {
+            str_len = len(sch.Association_info.Model_name)
+          }
+          return funk.MaxInt([]int{acc, str_len}).(int)
+        },
+        0,
+      ),
+  )
+  for _, sch := range schema {
+    if sch.FieldType != table_schema.ASSOCIATION {
+      continue
+    }
+
+    info := sch.Association_info
+    _, err = f.WriteString(
+        fmt.Sprintf(
+          "  %-[1]*[2]s _%[3]s;\n",
+          fk_model_max_len + 3,
+          info.Model_name + "VM?",
+          info.As_name,
+        ),
+    )
+    check(err)
+  }
+  _, err = f.WriteString("\n")
+  check(err)
+
+
+  // fk properties getter
+  as_name_max_len := int(
+      funk.Reduce(
+        schema,
+        func (acc int, sch table_schema.TableScheme) int {
+          str_len := 0
+          if sch.FieldType == table_schema.ASSOCIATION {
+            str_len = len(sch.Association_info.As_name)
+          }
+          return funk.MaxInt([]int{acc, str_len}).(int)
+        },
+        0,
+      ),
+  )
+  for _, sch := range schema {
+    if sch.FieldType != table_schema.ASSOCIATION {
+      continue
+    }
+
+    info := sch.Association_info
+    _, err = f.WriteString(
+        fmt.Sprintf(
+          "  %-[1]*[2]s get %-[3]*[4]s => _%[4]s;\n",
+          fk_model_max_len + 3,
+          info.Model_name + "VM?",
+          as_name_max_len,
+          info.As_name,
+        ),
+    )
+    check(err)
+  }
+  _, err = f.WriteString("\n")
+  check(err)
+
+
+  // has-many properties
+  model_name_max_len := 0
+  for _, model_name := range manyname_modelname_map {
+    model_name_max_len = funk.MaxInt([]int{model_name_max_len, len(model_name)}).(int)
+  }
+  for many_name, model_name := range manyname_modelname_map {
+    _, err = f.WriteString(
+        fmt.Sprintf(
+          "  List<%[1]*[2]s>? _%[3]s;\n",
+          model_name_max_len + 2,
+          model_name + "VM",
+          makePropName(many_name),
+        ),
+    )
+    check(err)
+  }
+  _, err = f.WriteString("\n")
+  check(err)
+
+
+  // has-many properties getter
+  many_name_max_len := 0
+  for many_name := range manyname_modelname_map {
+    many_name_max_len = funk.MaxInt([]int{many_name_max_len, len(many_name)}).(int)
+  }
+  for many_name, model_name := range manyname_modelname_map {
+    _, err = f.WriteString(
+        fmt.Sprintf(
+          "  List<%[1]*[2]s>? get %[3]*[4]s => _%[4]s;\n",
+          model_name_max_len + 2,
+          model_name + "VM",
+          many_name_max_len,
+          makePropName(many_name),
+        ),
+    )
+    check(err)
+  }
+  _, err = f.WriteString("\n\n")
+  check(err)
+
+
+  // constructor
+  genVMConstructor(f, table_name, vm_name, schema, manyname_modelname_map, id_key, id_type)
+
+  // view model tail
+  _, err = f.WriteString("}")
+  check(err)
+
+
+  // end
+  f.Sync()
+}
+
+func genVMConstructor(
+    f *os.File,
+    table_name string,
+    vm_name string,
+    schema []table_schema.TableScheme,
+    manyname_modelname_map map[string]string,
+    id_key string,
+    id_type string,
+) {
+  // head
+  _, err := f.WriteString(
+      fmt.Sprintf(
+        "  %s (dynamic json, {String? vm_name}): super(vm_name: vm_name) {\n    if (json.containsKey('id') == false)\n      throw 'no id';\n\n    _id = json['id'];\n\n\n",
+        vm_name,
+      ),
+  )
+  check(err)
+
+
+  // properties
+  _, err = f.WriteString("    // set properties\n    final properties = <VMProperty>[];\n")
+  check(err)
+
+  for _, sch := range schema {
+    if sch.Field == id_key {
+      continue
+    }
+    _, err = f.WriteString(
+        fmt.Sprintf(
+          "    if (json.containsKey('%[1]s')) {\n      %[2]s = VMProperty<%[3]s>(%[4]s, _id, '%[1]s');\n      properties.add(%[2]s!);\n    }\n\n",
+          sch.Field,
+          makePropName(sch.Field),
+          convertTypeFromSql(sch.Type),
+          table_name,
+        ),
+    )
+    check(err)
+  }
+
+  _, err = f.WriteString("    setProperties(properties);\n\n\n")
+  check(err)
+
+
+  // associations
+  _, err = f.WriteString("    // set nested vms\n    final nested_vms = <ViewModel>[];\n")
+  check(err)
+
+  for _, sch := range schema {
+    if sch.FieldType != table_schema.ASSOCIATION {
+      continue
+    }
+    _, err = f.WriteString(
+        fmt.Sprintf(
+          "    if (json.containsKey('*%[1]s')) {\n      %[1]s = %[2]s(json['*%[1]s'], vm_name: '*%[1]s');\n      nested_vms.add(%[1]s!);\n    }\n\n",
+          sch.Association_info.As_name,
+          sch.Association_info.Model_name + "VM",
+        ),
+    )
+    check(err)
+  }
+
+
+  // has-many associations
+  for many_name, model_name := range manyname_modelname_map {
+    _, err = f.WriteString(
+        fmt.Sprintf(
+          "    if (json.containsKey('*%s')) {\n",
+          many_name,
+        ),
+    )
+    check(err)
+
+    _, err = f.WriteString(
+        fmt.Sprintf(
+          "      var ni = 0;\n      for (final nested_json in json['*%[1]s']) {\n        final vm = %[2]s(nested_json, vm_name: '*%[1]s.' + ni);\n        %[1]s.add(vm);\n        nested_vms.add(vm);\n        ni += 1;\n      }\n\n",
+          many_name,
+          model_name + "VM",
+        ),
+    )
+    check(err)
+
+    _, err = f.WriteString("    }\n\n")
+    check(err)
+  }
+
+  _, err = f.WriteString("    setNestedVMs(nested_vms);\n")
+  check(err)
+
+
+  // end of constructor
+  _, err = f.WriteString("  }\n")
+  check(err)
 }
 
 func genModel (
@@ -171,6 +502,24 @@ func makePathName (table_name string) string {
   return path
 }
 
+func convertTypeFromSql (sql_type string) string {
+  switch {
+  case strings.HasPrefix(sql_type, "int("):
+    return "int"
+  case sql_type == "tinyint(1)":
+    return "bool"
+  case strings.HasPrefix(sql_type, "varchar("),
+       strings.HasPrefix(sql_type, "text"    ):
+    return "String"
+  case strings.HasPrefix(sql_type, "datetime"):
+    return "DateTime"
+  case strings.HasPrefix(sql_type, "enum("):
+    return "String"
+  default:
+    panic("unknown type " + sql_type)
+  }
+}
+
 func genProperties (f *os.File, table_name string, schema []table_schema.TableScheme, id_key string) {
   if len(schema) <= 0 {
     return
@@ -192,22 +541,7 @@ func genProperties (f *os.File, table_name string, schema []table_schema.TableSc
         if scheme.Field == id_key {
           return ""
         }
-
-        switch {
-        case strings.HasPrefix(scheme.Type, "int("):
-          return "int"
-        case scheme.Type == "tinyint(1)":
-          return "bool"
-        case strings.HasPrefix(scheme.Type, "varchar("),
-             strings.HasPrefix(scheme.Type, "text"    ):
-          return "String"
-        case strings.HasPrefix(scheme.Type, "datetime"):
-          return "DateTime"
-        case strings.HasPrefix(scheme.Type, "enum("):
-          return "String"
-        default:
-          panic("unknown type " + scheme.Type)
-        }
+        return convertTypeFromSql(scheme.Type)
       },
   ).([]string)
   converted_type_max_len := funk.Reduce(
