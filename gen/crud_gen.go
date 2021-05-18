@@ -37,7 +37,7 @@ func genViewModel (
   defer f.Close()
 
   // import default
-  _, err = f.WriteString(import_str)
+  _, err = f.WriteString(vm_import_str)
   check(err)
 
 
@@ -242,8 +242,10 @@ func genViewModel (
     )
     check(err)
   }
-  _, err = f.WriteString("\n\n")
-  check(err)
+  if len(manyname_modelname_map) > 0 {
+    _, err = f.WriteString("\n\n")
+    check(err)
+  }
 
 
   // constructor
@@ -287,7 +289,7 @@ func genVMConstructor(
     }
     _, err = f.WriteString(
         fmt.Sprintf(
-          "    if (json.containsKey('%[1]s')) {\n      %[2]s = VMProperty<%[3]s>(%[4]s, _id, '%[1]s');\n      properties.add(%[2]s!);\n    }\n\n",
+          "    if (json.containsKey('%[1]s')) {\n      _%[2]s = VMProperty<%[3]s>(%[4]s.mh, _id, '%[1]s');\n      properties.add(%[2]s!);\n    }\n\n",
           sch.Field,
           makePropName(sch.Field),
           convertTypeFromSql(sch.Type),
@@ -311,7 +313,7 @@ func genVMConstructor(
     }
     _, err = f.WriteString(
         fmt.Sprintf(
-          "    if (json.containsKey('*%[1]s')) {\n      %[1]s = %[2]s(json['*%[1]s'], vm_name: '*%[1]s');\n      nested_vms.add(%[1]s!);\n    }\n\n",
+          "    if (json.containsKey('*%[1]s')) {\n      _%[1]s = %[2]s(json['*%[1]s'], vm_name: '*%[1]s');\n      nested_vms.add(_%[1]s!);\n    }\n\n",
           sch.Association_info.As_name,
           sch.Association_info.Model_name + "VM",
         ),
@@ -332,7 +334,7 @@ func genVMConstructor(
 
     _, err = f.WriteString(
         fmt.Sprintf(
-          "      var ni = 0;\n      for (final nested_json in json['*%[1]s']) {\n        final vm = %[2]s(nested_json, vm_name: '*%[1]s.' + ni);\n        %[1]s.add(vm);\n        nested_vms.add(vm);\n        ni += 1;\n      }\n\n",
+          "      var ni = 0;\n      for (final nested_json in json['*%[1]s']) {\n        final vm = %[2]s(nested_json, vm_name: '*%[1]s.' + ni.toString());\n        _%[1]s!.add(vm);\n        nested_vms.add(vm);\n        ni += 1;\n      }\n\n",
           many_name,
           model_name + "VM",
         ),
@@ -421,8 +423,17 @@ func genModel (
   _, err = f.WriteString(
       fmt.Sprintf(
         model_ctor_fmt,
+        table_name,
         strings.Join(
-          funk.Map(schema, func (scheme table_schema.TableScheme) string { return makePropName(scheme.Field) }).([]string),
+          funk.Filter(
+            funk.Map(
+              schema,
+              func (scheme table_schema.TableScheme) string { return makePropName(scheme.Field) },
+            ),
+            func (e string) bool {
+              return e != "id"
+            },
+          ).([]string),
           ", \n      ",
         ) + ",",
       ),
@@ -605,10 +616,15 @@ import 'package:wse_mm/wse_model.dart';
 
 `
 
+const vm_import_str = `import 'package:mm/view_model.dart';
+import 'package:mm/vm_property.dart';
+
+`
+
 const model_head_tmp = `
 class {{.table_name}} extends WseModel {
   static final _em = {{.table_name}}({{.em_id}});
-  static final _handler = {{.table_name}}Modelhandler();
+  static final _handler = {{.table_name}}ModelHandler();
 
   static {{.table_name}} get em => _em;
   static {{.table_name}}ModelHandler get mh => _handler;
@@ -619,7 +635,7 @@ class {{.table_name}} extends WseModel {
 `
 
 const model_ctor_fmt = `
-  TestModel (this._id) {
+  %s (this._id) {
     setProperties([
       %s
     ]);
