@@ -45,11 +45,11 @@ func main() {
 
   /// generate crud codes
   // make schema_infos
-  tablename_schemainfo_map := map[string]schemaInfo{}
+  tablename_schemainfo_map := map[string]table_schema.SchemaInfo{}
   for _, tn := range table_names {
     schema := table_schema.FetchTableSchema(db, tn)
     
-    tablename_schemainfo_map[tn] = schemaInfo{
+    tablename_schemainfo_map[tn] = table_schema.SchemaInfo{
       tn,
       schema,
       map[string]string{},
@@ -69,14 +69,11 @@ func main() {
     }
   }
 
-  // generate
+  // generate Model for crud
   for _, info := range tablename_schemainfo_map {
-    gen.GenCodeForCrud(info.Table_name, info.Schema, info.Manyname_modelname_map)
+    gen.GenModelForCrud(info.Table_name, info.Schema, info.Manyname_modelname_map)
   }
-}
 
-type schemaInfo struct {
-  Table_name             string
-  Schema                 []table_schema.TableScheme
-  Manyname_modelname_map map[string]string
+  // generate api
+  gen.GenApi(tablename_schemainfo_map)
 }

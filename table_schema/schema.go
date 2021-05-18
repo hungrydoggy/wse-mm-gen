@@ -165,3 +165,10 @@ func extractSettingWithComment (ts *TableScheme) (string, string) {
     return setting_str, strings.Join(lines[1:], "\n")
   }
 }
+
+
+type SchemaInfo struct {
+  Table_name             string
+  Schema                 []TableScheme
+  Manyname_modelname_map map[string]string
+}

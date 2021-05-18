@@ -13,7 +13,7 @@ import (
   table_schema "../table_schema"
 )
 
-func GenCodeForCrud (
+func GenModelForCrud (
     table_name string,
     schema []table_schema.TableScheme,
     manyname_modelname_map map[string]string,
@@ -367,7 +367,7 @@ func genModel (
   defer f.Close()
 
   // import default
-  _, err = f.WriteString(import_str)
+  _, err = f.WriteString(m_import_str)
   check(err)
 
 
@@ -489,8 +489,8 @@ func genModel (
 var re_first_cap = regexp.MustCompile("(.)([A-Z][a-z]+)")
 var re_all_cap   = regexp.MustCompile("([a-z0-9])([A-Z])")
 func makePathName (table_name string) string {
-	path := re_first_cap.ReplaceAllString(table_name, "${1}_${2}")
-	path  = re_all_cap  .ReplaceAllString(path      , "${1}_${2}")
+	path := re_first_cap.ReplaceAllString(table_name, "${1}-${2}")
+	path  = re_all_cap  .ReplaceAllString(path      , "${1}-${2}")
 	path = strings.ToLower(path)
 
   switch {
@@ -595,7 +595,7 @@ func makePropName (field_name string) string {
   }
 }
 
-func check(e error) {
+func check (e error) {
   if e != nil {
     panic(e)
   }
@@ -610,7 +610,7 @@ func Tprintf (template_name string, template_str string, data map[string]interfa
   return buf.String()
 }
 
-const import_str = `import 'package:mm/model.dart';
+const m_import_str = `import 'package:mm/model.dart';
 import 'package:mm/property.dart';
 import 'package:wse_mm/wse_model.dart';
 
