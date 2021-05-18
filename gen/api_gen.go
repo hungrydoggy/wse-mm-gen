@@ -26,6 +26,7 @@ func GenApi (tablename_schemainfo_map map[string]table_schema.SchemaInfo) {
         []string{
           "import 'package:mm/model.dart';",
           "import 'package:mm/property.dart';",
+          "import 'package:wse_mm/wse_model.dart';",
         },
         "\n",
       ),
@@ -71,9 +72,7 @@ func GenApi (tablename_schemainfo_map map[string]table_schema.SchemaInfo) {
 
 
   // write class head
-  _, err = f.WriteString(
-    fmt.Sprintf(api_head_fmt, os.Getenv("API_SERVER_ADDRESS")),
-  )
+  _, err = f.WriteString(api_head_str)
   check(err)
 
 
@@ -135,11 +134,42 @@ func genCrudApi (f *os.File, info table_schema.SchemaInfo, crud_type string, pat
   case "create":
     genCrudApi_create(f, info, path)
   case "read":
+    if strings.Contains(path, "&lt;id&gt;") {
+      // TODO get by id
+    }else {
+      genCrudApi_get(f, info, path)
+    }
   case "update":
+    // TODO update
   case "delete":
+    // TODO delete
   default:
     panic("unknown crud_type " + crud_type)
   }
+}
+
+func genCrudApi_get (f *os.File, info table_schema.SchemaInfo, path string) {
+  // head
+  _, err := f.WriteString(
+      fmt.Sprintf(
+        "  Future<List<%[1]sVM>> get_%[2]s ({\n      required dynamic options,\n      dynamic? order_query,\n  }) async {",
+        info.Table_name,
+        makeFuncNameFromPath(path),
+      ),
+  )
+  check(err)
+
+
+  // write codes
+  _, err = f.WriteString(
+      fmt.Sprintf(api_crud_get_codes_fmt, info.Table_name),
+  )
+  check(err)
+
+
+  // tail
+  _, err = f.WriteString("  }\n\n")
+  check(err)
 }
 
 func genCrudApi_create (f *os.File, info table_schema.SchemaInfo, path string) {
@@ -330,9 +360,16 @@ var re_api_response = regexp.MustCompile(`\n\#\#\# Response`)
 var re_crud_api     = regexp.MustCompile("CRUD api - `(.*)` of (.*)")
 
 
-var api_head_fmt = `
+var api_head_str = `
 class Api {
-  String url = "%s";
-  String? token;
 
+`
+
+var api_crud_get_codes_fmt = `
+    final res_jsons = await WseModel.find(
+        %[1]s.mh,
+        options,
+        order_query: order_query,
+    );
+    return res_jsons.map((e) => %[1]sVM(e)).toList();
 `
