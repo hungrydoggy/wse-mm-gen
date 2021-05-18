@@ -135,7 +135,7 @@ func genCrudApi (f *os.File, info table_schema.SchemaInfo, crud_type string, pat
     genCrudApi_create(f, info, path)
   case "read":
     if strings.Contains(path, "&lt;id&gt;") {
-      // TODO get by id
+      genCrudApi_getById(f, info, path)
     }else {
       genCrudApi_get(f, info, path)
     }
@@ -146,6 +146,31 @@ func genCrudApi (f *os.File, info table_schema.SchemaInfo, crud_type string, pat
   default:
     panic("unknown crud_type " + crud_type)
   }
+}
+
+func genCrudApi_getById (f *os.File, info table_schema.SchemaInfo, path string) {
+
+  // head
+  _, err := f.WriteString(
+      fmt.Sprintf(
+        "  Future<%[1]sVM?> get_%[2]s (\n    int id,\n    {\n      dynamic? options,\n      bool?    need_count,\n    }\n  ) async {",
+        info.Table_name,
+        makeFuncNameFromPath(path),
+      ),
+  )
+  check(err)
+
+
+  // write codes
+  _, err = f.WriteString(
+      fmt.Sprintf(api_crud_get_by_id_codes_fmt, info.Table_name),
+  )
+  check(err)
+
+
+  // tail
+  _, err = f.WriteString("  }\n\n")
+  check(err)
 }
 
 func genCrudApi_get (f *os.File, info table_schema.SchemaInfo, path string) {
@@ -336,6 +361,13 @@ func makeFuncNameFromPath (path string) string {
             return ""
           }
 
+          subs := re_path_param.FindStringSubmatch(p)
+          if len(subs) > 0 {
+            return strings.ToUpper(
+                strings.ReplaceAll(subs[1], "-", ""),
+            )
+          }
+
           r := strings.Join(
             funk.Map(
               strings.Split(p, "-"),
@@ -358,6 +390,7 @@ var re_api_head     = regexp.MustCompile("\n\\#\\# (.*)&nbsp;&nbsp;&nbsp;&nbsp;`
 var re_api_request  = regexp.MustCompile(`\n\#\#\# Request` )
 var re_api_response = regexp.MustCompile(`\n\#\#\# Response`)
 var re_crud_api     = regexp.MustCompile("CRUD api - `(.*)` of (.*)")
+var re_path_param   = regexp.MustCompile("&lt;(.*)&gt;")
 
 
 var api_head_str = `
@@ -372,4 +405,16 @@ var api_crud_get_codes_fmt = `
         order_query: order_query,
     );
     return res_jsons.map((e) => %[1]sVM(e)).toList();
+`
+
+var api_crud_get_by_id_codes_fmt = `
+    final res_jsons = await WseModel.findById(
+        %[1]s.mh,
+        id,
+        options   : options,
+        need_count: need_count,
+    );
+    if (res_jsons.isEmpty)
+      return null;
+    return %[1]sVM(res_jsons[0]);
 `
