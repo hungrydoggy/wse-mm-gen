@@ -27,7 +27,7 @@ func FetchTableNames (db *sql.DB) []string {
   return table_names
 }
 
-func FetchTableSchema (db *sql.DB, table_name string) []TableScheme {
+func FetchTableSchema (db *sql.DB, table_name string) []*TableScheme {
   rows, err := db.Query(
       fmt.Sprintf("show full columns from %s", table_name),
   )
@@ -36,7 +36,7 @@ func FetchTableSchema (db *sql.DB, table_name string) []TableScheme {
   }
   defer rows.Close()
 
-  schema := []TableScheme{}
+  schema := []*TableScheme{}
   for rows.Next() {
     var __ sql.NullString
     null_str := ""
@@ -59,7 +59,7 @@ func FetchTableSchema (db *sql.DB, table_name string) []TableScheme {
 
     parseComment(&ts)
 
-    schema = append(schema, ts)
+    schema = append(schema, &ts)
   }
 
   return schema
@@ -169,6 +169,6 @@ func extractSettingWithComment (ts *TableScheme) (string, string) {
 
 type SchemaInfo struct {
   Table_name             string
-  Schema                 []TableScheme
+  Schema                 []*TableScheme
   Manyname_modelname_map map[string]string
 }

@@ -45,11 +45,11 @@ func main() {
 
   /// generate crud codes
   // make schema_infos
-  tablename_schemainfo_map := map[string]table_schema.SchemaInfo{}
+  tablename_schemainfo_map := map[string]*table_schema.SchemaInfo{}
   for _, tn := range table_names {
     schema := table_schema.FetchTableSchema(db, tn)
     
-    tablename_schemainfo_map[tn] = table_schema.SchemaInfo{
+    tablename_schemainfo_map[tn] = &table_schema.SchemaInfo{
       tn,
       schema,
       map[string]string{},

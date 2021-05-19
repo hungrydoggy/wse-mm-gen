@@ -15,16 +15,37 @@ import (
 
 func GenModelForCrud (
     table_name string,
-    schema []table_schema.TableScheme,
+    schema []*table_schema.TableScheme,
     manyname_modelname_map map[string]string,
 ) {
+  // add password if has #password_hash
+  for _, sch := range schema {
+    if sch.Field == "#password_hash" {
+      schema = append(
+          schema,
+          &table_schema.TableScheme{
+            "password",
+            sch.Type,
+            sch.Null,
+            sch.Key,
+            sch.Default,
+            sch.Extra,
+            sch.Comment,
+            sch.FieldType,
+            sch.Hidden_perms,
+            sch.Association_info,
+          },
+      )
+    }
+  }
+
   genModel(table_name, schema, manyname_modelname_map, "id", "int", "0")
   genViewModel(table_name, schema, manyname_modelname_map, "id", "int", "0")
 }
 
 func genViewModel (
     table_name string,
-    schema []table_schema.TableScheme,
+    schema []*table_schema.TableScheme,
     manyname_modelname_map map[string]string,
     id_key string,
     id_type string,
@@ -80,15 +101,13 @@ func genViewModel (
 
 
   // normal properties
-  prop_type_max_len := int(
-      funk.Reduce(
-        schema,
-        func (acc int, sch table_schema.TableScheme) int {
-          return funk.MaxInt([]int{acc, len(convertTypeFromSql(sch.Type))}).(int)
-        },
-        0,
-      ),
-  )
+  prop_type_max_len := funk.Reduce(
+      schema,
+      func (acc int, sch *table_schema.TableScheme) int {
+        return funk.MaxInt([]int{acc, len(convertTypeFromSql(sch.Type))}).(int)
+      },
+      0,
+  ).(int)
   for _, sch := range schema {
     if sch.Field == id_key {
       continue;
@@ -108,15 +127,13 @@ func genViewModel (
 
 
   // normal properties getter
-  prop_max_len := int(
-      funk.Reduce(
-        schema,
-        func (acc int, sch table_schema.TableScheme) int {
-          return funk.MaxInt([]int{acc, len(makePropName(sch.Field))}).(int)
-        },
-        0,
-      ),
-  )
+  prop_max_len := funk.Reduce(
+      schema,
+      func (acc int, sch *table_schema.TableScheme) int {
+        return funk.MaxInt([]int{acc, len(makePropName(sch.Field))}).(int)
+      },
+      0,
+  ).(int)
   for _, sch := range schema {
     if sch.Field == id_key {
       continue;
@@ -137,19 +154,17 @@ func genViewModel (
 
 
   // fk properties
-  fk_model_max_len := int(
-      funk.Reduce(
-        schema,
-        func (acc int, sch table_schema.TableScheme) int {
-          str_len := 0
-          if sch.FieldType == table_schema.ASSOCIATION {
-            str_len = len(sch.Association_info.Model_name)
-          }
-          return funk.MaxInt([]int{acc, str_len}).(int)
-        },
-        0,
-      ),
-  )
+  fk_model_max_len := funk.Reduce(
+      schema,
+      func (acc int, sch *table_schema.TableScheme) int {
+        str_len := 0
+        if sch.FieldType == table_schema.ASSOCIATION {
+          str_len = len(sch.Association_info.Model_name)
+        }
+        return funk.MaxInt([]int{acc, str_len}).(int)
+      },
+      0,
+  ).(int)
   for _, sch := range schema {
     if sch.FieldType != table_schema.ASSOCIATION {
       continue
@@ -171,19 +186,17 @@ func genViewModel (
 
 
   // fk properties getter
-  as_name_max_len := int(
-      funk.Reduce(
-        schema,
-        func (acc int, sch table_schema.TableScheme) int {
-          str_len := 0
-          if sch.FieldType == table_schema.ASSOCIATION {
-            str_len = len(sch.Association_info.As_name)
-          }
-          return funk.MaxInt([]int{acc, str_len}).(int)
-        },
-        0,
-      ),
-  )
+  as_name_max_len := funk.Reduce(
+      schema,
+      func (acc int, sch *table_schema.TableScheme) int {
+        str_len := 0
+        if sch.FieldType == table_schema.ASSOCIATION {
+          str_len = len(sch.Association_info.As_name)
+        }
+        return funk.MaxInt([]int{acc, str_len}).(int)
+      },
+      0,
+  ).(int)
   for _, sch := range schema {
     if sch.FieldType != table_schema.ASSOCIATION {
       continue
@@ -264,7 +277,7 @@ func genVMConstructor(
     f *os.File,
     table_name string,
     vm_name string,
-    schema []table_schema.TableScheme,
+    schema []*table_schema.TableScheme,
     manyname_modelname_map map[string]string,
     id_key string,
     id_type string,
@@ -356,7 +369,7 @@ func genVMConstructor(
 
 func genModel (
     table_name string,
-    schema []table_schema.TableScheme,
+    schema []*table_schema.TableScheme,
     manyname_modelname_map map[string]string,
     id_key string,
     id_type string,
@@ -428,7 +441,7 @@ func genModel (
           funk.Filter(
             funk.Map(
               schema,
-              func (scheme table_schema.TableScheme) string { return makePropName(scheme.Field) },
+              func (scheme *table_schema.TableScheme) string { return makePropName(scheme.Field) },
             ),
             func (e string) bool {
               return e != "id"
@@ -451,8 +464,8 @@ func genModel (
   key_nestedhandler_str := "{"
   associations := funk.Filter(
       schema,
-      func (sch table_schema.TableScheme) bool { return sch.FieldType == table_schema.ASSOCIATION; },
-  ).([]table_schema.TableScheme)
+      func (sch *table_schema.TableScheme) bool { return sch.FieldType == table_schema.ASSOCIATION; },
+  ).([]*table_schema.TableScheme)
   for _, ass := range associations {
     info := ass.Association_info
     key_nestedhandler_str += fmt.Sprintf("\n    '*%s': %s.mh,", info.As_name, info.Model_name)
@@ -531,7 +544,7 @@ func convertTypeFromSql (sql_type string) string {
   }
 }
 
-func genProperties (f *os.File, table_name string, schema []table_schema.TableScheme, id_key string) {
+func genProperties (f *os.File, table_name string, schema []*table_schema.TableScheme, id_key string) {
   if len(schema) <= 0 {
     return
   }
@@ -539,16 +552,16 @@ func genProperties (f *os.File, table_name string, schema []table_schema.TableSc
   // compute field_max_len
   field_max_len := funk.Reduce(
       schema,
-      func (acc int, scheme table_schema.TableScheme) int {
+      func (acc int, scheme *table_schema.TableScheme) int {
         return funk.MaxInt([]int{acc, len(makePropName(scheme.Field))}).(int)
       },
       0,
-  )
+  ).(int)
 
   // convert types
   converted_types := funk.Map(
       schema,
-      func (scheme table_schema.TableScheme) string {
+      func (scheme *table_schema.TableScheme) string {
         if scheme.Field == id_key {
           return ""
         }
@@ -561,7 +574,7 @@ func genProperties (f *os.File, table_name string, schema []table_schema.TableSc
         return funk.MaxInt([]int{acc, len(ct)}).(int)
       },
       0,
-  )
+  ).(int)
 
   // write code
   for si, scheme := range schema {

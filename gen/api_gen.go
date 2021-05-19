@@ -13,11 +13,51 @@ import (
   table_schema "../table_schema"
 )
 
-func GenApi (tablename_schemainfo_map map[string]table_schema.SchemaInfo) {
+func GenApi (tablename_schemainfo_map map[string]*table_schema.SchemaInfo) {
   // create api source code
   f, err := os.Create("./out/api.dart")
   check(err)
   defer f.Close()
+
+
+  // read api doc
+  bytes, err := ioutil.ReadFile("./apis.md")
+  if err != nil {
+    panic(err)
+  }
+  doc := string(bytes)
+
+
+  // make ApiDocInfo list
+  api_doc_infos := []ApiDocInfo{}
+  idx := strings.Index(doc, "각 Api 설명")
+  api_detail_part := doc[idx:]
+  for _, idxes := range re_api_head.FindAllStringIndex(api_detail_part, -1) {
+    start_idx := idxes[0]
+    sm := re_api_head.FindStringSubmatch(api_detail_part[start_idx:])
+    path       := sm[1]
+    method     := sm[2]
+    permission := sm[3]
+    comment    := sm[4]
+
+    permission = strings.Trim(permission, "_")
+
+    fmt.Println("##", path, method)
+    fmt.Println(permission)
+    fmt.Println(comment)
+
+    api_doc_infos = append(
+        api_doc_infos,
+        ApiDocInfo{
+          path,
+          method,
+          permission,
+          comment,
+          start_idx,
+        },
+    )
+    println("")
+  }
 
 
   // import part
@@ -76,46 +116,36 @@ func GenApi (tablename_schemainfo_map map[string]table_schema.SchemaInfo) {
   check(err)
 
 
-  // read api doc
-  bytes, err := ioutil.ReadFile("./apis.md")
-  if err != nil {
-    panic(err)
-  }
-  doc := string(bytes)
-
-
   // generate
-  idx := strings.Index(doc, "각 Api 설명")
-  api_detail_part := doc[idx:]
-  for _, idxes := range re_api_head.FindAllStringIndex(api_detail_part, -1) {
-    start_idx := idxes[0]
-    sm := re_api_head.FindStringSubmatch(api_detail_part[start_idx:])
-    path       := sm[1]
-    method     := sm[2]
-    permission := sm[3]
-    comment    := sm[4]
-
-    permission = strings.Trim(permission, "_")
-
-    fmt.Println("##", path, method)
-    fmt.Println(permission)
-    fmt.Println(comment)
-    crud_sm := re_crud_api.FindStringSubmatch(comment)
+  for _, ad_info := range api_doc_infos {
+    crud_sm := re_crud_api.FindStringSubmatch(ad_info.Comment)
     if len(crud_sm) > 0 {
-      // crud api
+      /// crud api
       crud_type  := crud_sm[1]
       model_name := crud_sm[2]
       info, ok := tablename_schemainfo_map[model_name]
       if ok == false {
         panic("no model name : " + model_name)
       }
-      genCrudApi(f, info, crud_type, path)
+      genCrudApi(f, info, crud_type, ad_info.Path)
 
     }else {
-      // TODO custom api
-    }
+      /// custom api
+      // extract request
+      fmt.Println("!!", ad_info.Path, ad_info.Method)
+      custom_api_part := api_detail_part[ad_info.Start_idx:]
+      req_idxes := re_api_request.FindStringIndex(custom_api_part)
+      res_idxes := re_api_response.FindStringIndex(custom_api_part[req_idxes[1]:])
+      request := re_md_code.FindStringSubmatch(custom_api_part[req_idxes[1]:req_idxes[1]+res_idxes[0]])[1]
 
-    println("")
+      // extract response
+      other_idxes := re_other_statuses.FindStringIndex(custom_api_part[req_idxes[1]+res_idxes[1]:])
+      response_part := custom_api_part[req_idxes[1]+res_idxes[1]: req_idxes[1]+res_idxes[1]+other_idxes[1]]
+      sm_idxes_list := re_small_title.FindAllStringIndex(response_part, -1)
+      response := re_md_code.FindStringSubmatch(response_part[sm_idxes_list[0][1]:sm_idxes_list[1][0]])[1]
+
+      genCustomApi(f, tablename_schemainfo_map, &ad_info, ParseJsonEx(request), ParseJsonEx(response))
+    }
   }
 
 
@@ -129,7 +159,92 @@ func GenApi (tablename_schemainfo_map map[string]table_schema.SchemaInfo) {
 }
 
 
-func genCrudApi (f *os.File, info table_schema.SchemaInfo, crud_type string, path string) {
+func genCustomApi (
+    f *os.File,
+    tablename_schemainfo_map map[string]*table_schema.SchemaInfo,
+    ad_info *ApiDocInfo,
+    request_jsonex JsonExValue,
+    response_jsonex JsonExValue,
+) {
+  // head
+  _, err := f.WriteString(
+      fmt.Sprintf(
+        "  Future<%s_%sVM> %s_%s (",
+        makeModelNameFromPath(ad_info.Method),
+        makeModelNameFromPath(ad_info.Path),
+        makeFuncNameFromPath(ad_info.Method),
+        makeFuncNameFromPath(ad_info.Path),
+      ),
+  )
+  check(err)
+
+  request_map := request_jsonex.Value.(map[string]JsonExValue)
+  for k, v := range request_map {
+    is_optional := funk.Reduce(
+        v.Comments,
+        func (acc bool, c string) bool {
+          return acc || strings.HasPrefix(strings.Trim(c, " "), "optional")
+        },
+        false,
+    ).(bool)
+    optional_chr := ""
+    if is_optional {
+      optional_chr = "?"
+    }
+
+    _, err := f.WriteString("\n")
+    check(err)
+
+    // comment
+    for _, cmt := range v.Comments {
+      _, err := f.WriteString(fmt.Sprintf("      //%s\n", cmt))
+      check(err)
+    }
+
+
+    // param
+    switch v.Type {
+    case "object":
+      _, err := f.WriteString(
+          fmt.Sprintf("      dynamic%s %s,\n", optional_chr, k),
+      )
+      check(err)
+    case "array":
+      _, err := f.WriteString(
+          fmt.Sprintf("      List<dynamic>%s %s,\n", optional_chr, k),
+      )
+      check(err)
+    case "string":
+      _, err := f.WriteString(
+          fmt.Sprintf(
+            "      %s%s %s,\n",
+            convertTypeFromDoc(v.Value.(string)),
+            optional_chr,
+            k,
+          ),
+      )
+      check(err)
+    default:
+      panic("unknown json-ex type : " + v.Type)
+    }
+  }
+
+    
+  // end of api head
+  if len(request_map) > 0 {
+    _, err := f.WriteString("  ")
+    check(err)
+  }
+  _, err = f.WriteString(") async {\n")
+  check(err)
+
+
+  // tail
+  _, err = f.WriteString("  }\n\n")
+  check(err)
+}
+
+func genCrudApi (f *os.File, info *table_schema.SchemaInfo, crud_type string, path string) {
   switch crud_type {
   case "create":
     genCrudApi_create(f, info, path)
@@ -148,7 +263,7 @@ func genCrudApi (f *os.File, info table_schema.SchemaInfo, crud_type string, pat
   }
 }
 
-func genCrudApi_delete (f *os.File, info table_schema.SchemaInfo, path string) {
+func genCrudApi_delete (f *os.File, info *table_schema.SchemaInfo, path string) {
 
   // head
   _, err := f.WriteString(
@@ -175,7 +290,7 @@ func genCrudApi_delete (f *os.File, info table_schema.SchemaInfo, path string) {
   check(err)
 }
 
-func genCrudApi_update (f *os.File, info table_schema.SchemaInfo, path string) {
+func genCrudApi_update (f *os.File, info *table_schema.SchemaInfo, path string) {
 
   // head
   _, err := f.WriteString(
@@ -195,12 +310,16 @@ func genCrudApi_update (f *os.File, info table_schema.SchemaInfo, path string) {
     if sch.Field == "id" {
       continue
     }
+    field := sch.Field
+    if field == "#password_hash" {
+      field = "password"
+    }
     _, err = f.WriteString(
         fmt.Sprintf(
           "    if (params.containsKey('%[2]s'))\n      property_value_map[%[1]s.em.%[3]s] = params['%[2]s'];\n",
           info.Table_name,
-          sch.Field,
-          makePropName(sch.Field),
+          field,
+          makePropName(field),
         ),
     )
     check(err)
@@ -214,7 +333,7 @@ func genCrudApi_update (f *os.File, info table_schema.SchemaInfo, path string) {
   check(err)
 }
 
-func genCrudApi_getById (f *os.File, info table_schema.SchemaInfo, path string) {
+func genCrudApi_getById (f *os.File, info *table_schema.SchemaInfo, path string) {
 
   // head
   _, err := f.WriteString(
@@ -239,7 +358,7 @@ func genCrudApi_getById (f *os.File, info table_schema.SchemaInfo, path string) 
   check(err)
 }
 
-func genCrudApi_get (f *os.File, info table_schema.SchemaInfo, path string) {
+func genCrudApi_get (f *os.File, info *table_schema.SchemaInfo, path string) {
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
@@ -263,7 +382,7 @@ func genCrudApi_get (f *os.File, info table_schema.SchemaInfo, path string) {
   check(err)
 }
 
-func genCrudApi_create (f *os.File, info table_schema.SchemaInfo, path string) {
+func genCrudApi_create (f *os.File, info *table_schema.SchemaInfo, path string) {
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
@@ -274,11 +393,15 @@ func genCrudApi_create (f *os.File, info table_schema.SchemaInfo, path string) {
           funk.Map(
             funk.Filter(
               info.Schema,
-              func (sch table_schema.TableScheme) bool {
+              func (sch *table_schema.TableScheme) bool {
                 return sch.Field != "id" && sch.Field != "createdAt" && sch.Field != "updatedAt";
               },
             ),
-            func (sch table_schema.TableScheme) string {
+            func (sch *table_schema.TableScheme) string {
+              field := sch.Field
+              if field == "#password_hash" {
+                field = "password"
+              }
               code := "\n      "
               if sch.Null == false && sch.Default.Valid == false {
                 code += "required "
@@ -288,13 +411,13 @@ func genCrudApi_create (f *os.File, info table_schema.SchemaInfo, path string) {
                 code += fmt.Sprintf(
                     "%s? %s",
                     prop_type,
-                    makePropName(sch.Field),
+                    makePropName(field),
                 )
               }else {
                 code += fmt.Sprintf(
                     "%s %s",
                     prop_type,
-                    makePropName(sch.Field),
+                    makePropName(field),
                 )
               }
               if sch.Default.Valid == true {
@@ -328,24 +451,28 @@ func genCrudApi_create (f *os.File, info table_schema.SchemaInfo, path string) {
   check(err)
   required_schema := funk.Filter(
     info.Schema,
-    func (sch table_schema.TableScheme) bool {
+    func (sch *table_schema.TableScheme) bool {
       return sch.Field != "id" && sch.Field != "createdAt" && sch.Field != "updatedAt" && sch.Null == false
     },
-  ).([]table_schema.TableScheme)
-  prop_max_len := int(funk.Reduce(
+  ).([]*table_schema.TableScheme)
+  prop_max_len := funk.Reduce(
     required_schema,
-    func (acc int, sch table_schema.TableScheme) int {
+    func (acc int, sch *table_schema.TableScheme) int {
       return funk.MaxInt([]int{acc, len(makePropName(sch.Field))}).(int)
     },
     0,
-  ))
+  ).(int)
   for _, sch := range required_schema {
+    field := sch.Field
+    if field == "#password_hash" {
+      field = "password"
+    }
     _, err = f.WriteString(
         fmt.Sprintf(
           "      %[1]s.em.%-[2]*[3]s: %[3]s,\n",
           info.Table_name,
           prop_max_len,
-          makePropName(sch.Field),
+          makePropName(field),
         ),
     )
     check(err)
@@ -392,13 +519,13 @@ func genCrudApi_create (f *os.File, info table_schema.SchemaInfo, path string) {
   )
   check(err)
 
-  field_max_len := int(funk.Reduce(
+  field_max_len := funk.Reduce(
     info.Schema,
-    func (acc int, sch table_schema.TableScheme) int {
+    func (acc int, sch *table_schema.TableScheme) int {
       return funk.MaxInt([]int{acc, len(sch.Field)}).(int)
     },
     0,
-  ))
+  ).(int)
 
   for _, sch := range info.Schema {
     _, err = f.WriteString(
@@ -416,6 +543,38 @@ func genCrudApi_create (f *os.File, info table_schema.SchemaInfo, path string) {
   // tail
   _, err = f.WriteString("    });\n  }\n\n")
   check(err)
+}
+
+func makeModelNameFromPath (path string) string {
+  return strings.Join(
+      funk.Map(
+        strings.Split(path, "/"),
+        func (p string) string {
+          if p == "" {
+            return ""
+          }
+
+          subs := re_path_param.FindStringSubmatch(p)
+          if len(subs) > 0 {
+            return strings.ToUpper(
+                strings.ReplaceAll(subs[1], "-", ""),
+            )
+          }
+
+          r := strings.Join(
+            funk.Map(
+              strings.Split(p, "-"),
+              func (s string) string {
+                return strings.ToUpper(s[0:1]) + s[1:]
+              },
+            ).([]string),
+            "",
+          )
+          return r
+        },
+      ).([]string),
+      "_",
+  )
 }
 
 func makeFuncNameFromPath (path string) string {
@@ -450,13 +609,43 @@ func makeFuncNameFromPath (path string) string {
   )
 }
 
+func convertTypeFromDoc (doc_type string) string {
+  switch doc_type {
+  case "INTEGER", "INT":
+    return "int"
+  case "STRING", "STR", "PASSWORD", "PWD":
+    return "String"
+  case "BOOLEAN", "BOOL":
+    return "bool"
+  case "DATETIME", "DATE_TIME", "DATE":
+    return "DateTime"
+  case "JSON_ARRAY", "ARRAY":
+    return "List<dynamic>"
+  case "JSON_OBJECT", "JSON_OBJ", "OBJECT":
+    return "dynamic"
+  default:
+    switch {
+    case strings.HasPrefix(doc_type, "STRING("):
+      return "String"
+    case strings.HasPrefix(doc_type, "ENUM"):
+      return "String"
+    case strings.HasPrefix(doc_type, "FK("):
+      return "int"
+    }
+    panic("unknown type " + doc_type)
+  }
+}
 
 
-var re_api_head     = regexp.MustCompile("\n\\#\\# (.*)&nbsp;&nbsp;&nbsp;&nbsp;`(.*)`\n> permission: (.*)\n>.*\n> (.*)\n")
-var re_api_request  = regexp.MustCompile(`\n\#\#\# Request` )
-var re_api_response = regexp.MustCompile(`\n\#\#\# Response`)
-var re_crud_api     = regexp.MustCompile("CRUD api - `(.*)` of (.*)")
-var re_path_param   = regexp.MustCompile("&lt;(.*)&gt;")
+
+var re_api_head       = regexp.MustCompile("\n\\#\\# (.*)&nbsp;&nbsp;&nbsp;&nbsp;`(.*)`\n> permission: (.*)\n>.*\n> (.*)\n")
+var re_api_request    = regexp.MustCompile(`\n\#\#\# Request` )
+var re_api_response   = regexp.MustCompile(`\n\#\#\# Response`)
+var re_small_title    = regexp.MustCompile(`\n\#\#\#\# `)
+var re_other_statuses = regexp.MustCompile(`\n\#\#\#\# other statuses`)
+var re_crud_api       = regexp.MustCompile("CRUD api - `(.*)` of (.*)")
+var re_path_param     = regexp.MustCompile("&lt;(.*)&gt;")
+var re_md_code        = regexp.MustCompile("```javascript\n((?:.|\\s)*)```\n")
 
 
 var api_head_str = `
@@ -485,3 +674,10 @@ var api_crud_get_by_id_codes_fmt = `
     return %[1]sVM(res_jsons[0]);
 `
 
+type ApiDocInfo struct {
+  Path       string
+  Method     string
+  Permission string
+  Comment    string
+  Start_idx  int
+}
