@@ -140,12 +140,78 @@ func genCrudApi (f *os.File, info table_schema.SchemaInfo, crud_type string, pat
       genCrudApi_get(f, info, path)
     }
   case "update":
-    // TODO update
+    genCrudApi_update(f, info, path)
   case "delete":
-    // TODO delete
+    genCrudApi_delete(f, info, path)
   default:
     panic("unknown crud_type " + crud_type)
   }
+}
+
+func genCrudApi_delete (f *os.File, info table_schema.SchemaInfo, path string) {
+
+  // head
+  _, err := f.WriteString(
+      fmt.Sprintf(
+        "  Future<void> delete_%s (int id) async {\n",
+        makeFuncNameFromPath(path),
+      ),
+  )
+  check(err)
+
+
+  // write codes
+  _, err = f.WriteString(
+      fmt.Sprintf(
+        "    await Model.deleteModel(%s.mh, id);\n",
+        info.Table_name,
+      ),
+  )
+  check(err)
+
+
+  // tail
+  _, err = f.WriteString("  }\n\n")
+  check(err)
+}
+
+func genCrudApi_update (f *os.File, info table_schema.SchemaInfo, path string) {
+
+  // head
+  _, err := f.WriteString(
+      fmt.Sprintf(
+        "  Future<void> update_%s (\n    int id,\n    { required dynamic params }\n  ) async {",
+        makeFuncNameFromPath(path),
+      ),
+  )
+  check(err)
+
+
+  // write codes
+  _, err = f.WriteString("    final property_value_map = <Property, dynamic>{};\n")
+  check(err)
+
+  for _, sch := range info.Schema {
+    if sch.Field == "id" {
+      continue
+    }
+    _, err = f.WriteString(
+        fmt.Sprintf(
+          "    if (params.containsKey('%[2]s'))\n      property_value_map[%[1]s.em.%[3]s] = params['%[2]s'];\n",
+          info.Table_name,
+          sch.Field,
+          makePropName(sch.Field),
+        ),
+    )
+    check(err)
+  }
+  _, err = f.WriteString("\n    await Admin(id).update(property_value_map);\n")
+  check(err)
+
+
+  // tail
+  _, err = f.WriteString("  }\n\n")
+  check(err)
 }
 
 func genCrudApi_getById (f *os.File, info table_schema.SchemaInfo, path string) {
@@ -418,3 +484,4 @@ var api_crud_get_by_id_codes_fmt = `
       return null;
     return %[1]sVM(res_jsons[0]);
 `
+
