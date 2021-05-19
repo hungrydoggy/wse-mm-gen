@@ -64,6 +64,7 @@ func GenApi (tablename_schemainfo_map map[string]*table_schema.SchemaInfo) {
   _, err = f.WriteString(
       strings.Join(
         []string{
+          "import 'dart:convert';\n",
           "import 'package:mm/model.dart';",
           "import 'package:mm/property.dart';",
           "import 'package:wse_mm/wse_model.dart';",
@@ -166,12 +167,18 @@ func genCustomApi (
     request_jsonex JsonExValue,
     response_jsonex JsonExValue,
 ) {
+  result_class := fmt.Sprintf(
+      "%s_%s",
+      makeModelNameFromPath(ad_info.Method),
+      makeModelNameFromPath(ad_info.Path),
+  )
+
+
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  Future<%s_%sVM> %s_%s (",
-        makeModelNameFromPath(ad_info.Method),
-        makeModelNameFromPath(ad_info.Path),
+        "  Future<%s> %s_%s (",
+        result_class,
         makeFuncNameFromPath(ad_info.Method),
         makeFuncNameFromPath(ad_info.Path),
       ),
@@ -179,6 +186,11 @@ func genCustomApi (
   check(err)
 
   request_map := request_jsonex.Value.(map[string]JsonExValue)
+  if len(request_map) > 0 {
+    _, err := f.WriteString("{")
+    check(err)
+  }
+
   for k, v := range request_map {
     is_optional := funk.Reduce(
         v.Comments,
@@ -188,8 +200,10 @@ func genCustomApi (
         false,
     ).(bool)
     optional_chr := ""
+    required_str := "required "
     if is_optional {
       optional_chr = "?"
+      required_str = ""
     }
 
     _, err := f.WriteString("\n")
@@ -206,18 +220,19 @@ func genCustomApi (
     switch v.Type {
     case "object":
       _, err := f.WriteString(
-          fmt.Sprintf("      dynamic%s %s,\n", optional_chr, k),
+          fmt.Sprintf("      %sdynamic%s %s,\n", required_str, optional_chr, k),
       )
       check(err)
     case "array":
       _, err := f.WriteString(
-          fmt.Sprintf("      List<dynamic>%s %s,\n", optional_chr, k),
+          fmt.Sprintf("      %sList<dynamic>%s %s,\n", required_str, optional_chr, k),
       )
       check(err)
     case "string":
       _, err := f.WriteString(
           fmt.Sprintf(
-            "      %s%s %s,\n",
+            "      %s%s%s %s,\n",
+            required_str,
             convertTypeFromDoc(v.Value.(string)),
             optional_chr,
             k,
@@ -232,10 +247,78 @@ func genCustomApi (
     
   // end of api head
   if len(request_map) > 0 {
-    _, err := f.WriteString("  ")
+    _, err := f.WriteString("  }")
     check(err)
   }
   _, err = f.WriteString(") async {\n")
+  check(err)
+
+
+
+  /// gen codes
+  // params - required
+  _, err = f.WriteString("    final params = {")
+  check(err)
+  for k, v := range request_map {
+    is_optional := funk.Reduce(
+        v.Comments,
+        func (acc bool, c string) bool {
+          return acc || strings.HasPrefix(strings.Trim(c, " "), "optional")
+        },
+        false,
+    ).(bool)
+    if is_optional == true {
+      continue
+    }
+
+    _, err = f.WriteString(
+      fmt.Sprintf("\n      '%[1]s': %[1]s,", k),
+    )
+    check(err)
+  }
+  _, err = f.WriteString("\n    };\n")
+  check(err)
+
+  // params - optional
+  for k, v := range request_map {
+    is_optional := funk.Reduce(
+        v.Comments,
+        func (acc bool, c string) bool {
+          return acc || strings.HasPrefix(strings.Trim(c, " "), "optional")
+        },
+        false,
+    ).(bool)
+    if is_optional == false {
+      continue
+    }
+
+    _, err = f.WriteString(
+      fmt.Sprintf("    if (%[1]s != null)\n      params['%[1]s'] = %[1]s;\n", k),
+    )
+    check(err)
+  }
+
+  // gen
+  param_key := "query_params"
+  if ad_info.Method == "post" || ad_info.Method == "put" {
+    param_key = "body"
+  }
+  _, err = f.WriteString(
+      fmt.Sprintf(
+        api_custom_call_api_fmt,
+        ad_info.Method,
+        ad_info.Path,
+        param_key,
+      ),
+  )
+  check(err)
+  
+  _, err = f.WriteString(
+      fmt.Sprintf(
+        "      final res_json = json.decode(res.body);\n      return %s(res_json);\n",
+        result_class,
+      ),
+  )
   check(err)
 
 
@@ -672,6 +755,14 @@ var api_crud_get_by_id_codes_fmt = `
     if (res_jsons.isEmpty)
       return null;
     return %[1]sVM(res_jsons[0]);
+`
+
+var api_custom_call_api_fmt = `
+    final res = await WseApiCall.%s(
+      '${WseModel.api_server_address}%s',
+      token: WseModel.token,
+      %s: params,
+    );
 `
 
 type ApiDocInfo struct {
