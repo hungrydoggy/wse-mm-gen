@@ -101,10 +101,29 @@ func GenApi (tablename_schemainfo_map map[string]*table_schema.SchemaInfo) {
   check(err)
 
 
-  // write import-model part
+  // write import-view-model part
   for _, mn := range model_names {
     _, err = f.WriteString(
         fmt.Sprintf("import './view_models/%sVM.dart';\n", mn),
+    )
+    check(err)
+  }
+  _, err = f.WriteString("\n")
+  check(err)
+
+
+  // write import-custom-result part
+  for _, ad_info := range api_doc_infos {
+    crud_sm := re_crud_api.FindStringSubmatch(ad_info.Comment)
+    if len(crud_sm) > 0 {
+      continue
+    }
+    _, err = f.WriteString(
+        fmt.Sprintf(
+            "import './custom_results/%s_%s.dart';\n",
+            makeModelNameFromPath(ad_info.Method),
+            makeModelNameFromPath(ad_info.Path),
+        ),
     )
     check(err)
   }
@@ -145,7 +164,11 @@ func GenApi (tablename_schemainfo_map map[string]*table_schema.SchemaInfo) {
       sm_idxes_list := re_small_title.FindAllStringIndex(response_part, -1)
       response := re_md_code.FindStringSubmatch(response_part[sm_idxes_list[0][1]:sm_idxes_list[1][0]])[1]
 
-      genCustomApi(f, tablename_schemainfo_map, &ad_info, ParseJsonEx(request), ParseJsonEx(response))
+      // gen
+      request_jsonex  := ParseJsonEx(request)
+      response_jsonex := ParseJsonEx(response)
+      genCustomApi(f, tablename_schemainfo_map, &ad_info, &request_jsonex, &response_jsonex)
+      GenCustomResult(tablename_schemainfo_map, &ad_info, &response_jsonex)
     }
   }
 
@@ -164,8 +187,8 @@ func genCustomApi (
     f *os.File,
     tablename_schemainfo_map map[string]*table_schema.SchemaInfo,
     ad_info *ApiDocInfo,
-    request_jsonex JsonExValue,
-    response_jsonex JsonExValue,
+    request_jsonex  *JsonExValue,
+    response_jsonex *JsonExValue,
 ) {
   result_class := fmt.Sprintf(
       "%s_%s",
@@ -195,7 +218,7 @@ func genCustomApi (
     is_optional := funk.Reduce(
         v.Comments,
         func (acc bool, c string) bool {
-          return acc || strings.HasPrefix(strings.Trim(c, " "), "optional")
+          return acc || strings.HasPrefix(strings.ToLower(strings.Trim(c, " ")), "optional")
         },
         false,
     ).(bool)
@@ -263,7 +286,7 @@ func genCustomApi (
     is_optional := funk.Reduce(
         v.Comments,
         func (acc bool, c string) bool {
-          return acc || strings.HasPrefix(strings.Trim(c, " "), "optional")
+          return acc || strings.HasPrefix(strings.ToLower(strings.Trim(c, " ")), "optional")
         },
         false,
     ).(bool)
@@ -284,7 +307,7 @@ func genCustomApi (
     is_optional := funk.Reduce(
         v.Comments,
         func (acc bool, c string) bool {
-          return acc || strings.HasPrefix(strings.Trim(c, " "), "optional")
+          return acc || strings.HasPrefix(strings.ToLower(strings.Trim(c, " ")), "optional")
         },
         false,
     ).(bool)
@@ -639,8 +662,12 @@ func makeModelNameFromPath (path string) string {
 
           subs := re_path_param.FindStringSubmatch(p)
           if len(subs) > 0 {
+            sm := subs[1]
+            if len(sm) <= 0 {
+              sm = subs[2]
+            }
             return strings.ToUpper(
-                strings.ReplaceAll(subs[1], "-", ""),
+                strings.ReplaceAll(sm, "-", ""),
             )
           }
 
@@ -693,10 +720,11 @@ func makeFuncNameFromPath (path string) string {
 }
 
 func convertTypeFromDoc (doc_type string) string {
+  doc_type = strings.ToUpper(strings.Trim(doc_type, `'"`))
   switch doc_type {
   case "INTEGER", "INT":
     return "int"
-  case "STRING", "STR", "PASSWORD", "PWD":
+  case "STRING", "STR", "PASSWORD", "PWD", "TEXT":
     return "String"
   case "BOOLEAN", "BOOL":
     return "bool"
@@ -719,6 +747,25 @@ func convertTypeFromDoc (doc_type string) string {
   }
 }
 
+func getDefaultValueForTypeFromDoc (doc_type string) string {
+  switch convertTypeFromDoc(doc_type) {
+  case "int":
+    return "0"
+  case "String":
+    return "''"
+  case "bool":
+    return "false"
+  case "DateTime":
+    return "DateTime.fromMillisecondsSinceEpoch(0)"
+  case "List<dynamic>":
+    return "<dynamic>[]"
+  case "dynamic":
+    return "{}"
+  default:
+    panic("unknown type for default value - " + doc_type)
+  }
+}
+
 
 
 var re_api_head       = regexp.MustCompile("\n\\#\\# (.*)&nbsp;&nbsp;&nbsp;&nbsp;`(.*)`\n> permission: (.*)\n>.*\n> (.*)\n")
@@ -727,7 +774,7 @@ var re_api_response   = regexp.MustCompile(`\n\#\#\# Response`)
 var re_small_title    = regexp.MustCompile(`\n\#\#\#\# `)
 var re_other_statuses = regexp.MustCompile(`\n\#\#\#\# other statuses`)
 var re_crud_api       = regexp.MustCompile("CRUD api - `(.*)` of (.*)")
-var re_path_param     = regexp.MustCompile("&lt;(.*)&gt;")
+var re_path_param     = regexp.MustCompile("&lt;(.*)&gt;|:(.*)")
 var re_md_code        = regexp.MustCompile("```javascript\n((?:.|\\s)*)```\n")
 
 

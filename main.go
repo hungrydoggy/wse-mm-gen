@@ -38,9 +38,10 @@ func main() {
 
   // prepare out dir
   os.RemoveAll("./out")
-  os.Mkdir("./out"            , 0755)
-  os.Mkdir("./out/models"     , 0755)
-  os.Mkdir("./out/view_models", 0755)
+  os.Mkdir("./out"               , 0755)
+  os.Mkdir("./out/models"        , 0755)
+  os.Mkdir("./out/view_models"   , 0755)
+  os.Mkdir("./out/custom_results", 0755)
 
 
   /// generate crud codes

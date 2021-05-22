@@ -1,7 +1,7 @@
 package gen
 
 import (
-  //"fmt"
+  "fmt"
   "regexp"
   "strings"
 )
@@ -9,11 +9,14 @@ import (
 
 func ParseJsonEx (str string) JsonExValue {
   str = strings.Trim(str, blank_cut_set)
+
   
+  // parse
+  comments := []string{}
   for idx:=0; true; idx+=1 {
     switch str[idx] {
     case '{':
-      res, idx := parseJsonEx_obj(str, idx)
+      res, idx := parseJsonEx_obj(str, idx, comments)
       left := strings.Trim(str[idx+1:], blank_cut_set)
       if len(left) > 0 {
         ei := 30
@@ -24,7 +27,7 @@ func ParseJsonEx (str string) JsonExValue {
       }
       return res
     case '[':
-      res, idx := parseJsonEx_arr(str, idx)
+      res, idx := parseJsonEx_arr(str, idx, comments)
       left := strings.Trim(str[idx+1:], blank_cut_set)
       if len(left) > 0 {
         ei := 30
@@ -36,6 +39,10 @@ func ParseJsonEx (str string) JsonExValue {
       return res
     case '/':
       idxes := re_jsonex_comment.FindStringSubmatchIndex(str[idx:])
+      if len(idxes) <= 0 {
+        panicJsonEx("syntax err", str, idx)
+      }
+      comments = append(comments, str[idx+idxes[2]: idx+idxes[3]])
       idx += idxes[1]
     default:
       panic("json-ex must start with [ or {")
@@ -45,28 +52,8 @@ func ParseJsonEx (str string) JsonExValue {
   return JsonExValue{}
 }
 
-func parseJsonEx_arr (str string, idx int) (JsonExValue, int) {
+func parseJsonEx_arr (str string, idx int, arr_comments []string) (JsonExValue, int) {
   result := []JsonExValue{}
-
-
-  // parse arr_comments
-  arr_comments := []string{}
-  for idx+=1; idx<len(str); idx+=1 {
-    if strings.Contains(blank_cut_set, str[idx:idx+1]) {
-      continue
-    }
-    if str[idx] != '/' {
-      idx -= 1
-      break
-    }
-
-    sub_idxes := re_jsonex_comment.FindStringSubmatchIndex(str[idx:])
-    if len(sub_idxes) <= 0 {
-      panicJsonEx("syntax err", str, idx)
-    }
-    arr_comments = append(arr_comments, str[idx+sub_idxes[2]: idx+sub_idxes[3]])
-    idx += sub_idxes[1]
-  }
 
 
   // parse
@@ -87,12 +74,15 @@ func parseJsonEx_arr (str string, idx int) (JsonExValue, int) {
       comments = append(comments, str[idx+sub_idxes[2]: idx+sub_idxes[3]])
       idx += sub_idxes[1]
     case ']':
+      if is_element_set == false {
+        result = append(result, JsonExValue{"string", element_str, comments})
+      }
       return JsonExValue{"array", result, arr_comments}, idx
     case '[':
       if is_element_set == true {
         panicJsonEx("element is already set", str, idx)
       }
-      arr, ridx := parseJsonEx_arr(str, idx)
+      arr, ridx := parseJsonEx_arr(str, idx, comments)
       result = append(result, arr)
       is_element_set = true
       idx = ridx
@@ -100,13 +90,13 @@ func parseJsonEx_arr (str string, idx int) (JsonExValue, int) {
       if is_element_set == true {
         panicJsonEx("element is already set", str, idx)
       }
-      obj, ridx := parseJsonEx_obj(str, idx)
+      obj, ridx := parseJsonEx_obj(str, idx, comments)
       result = append(result, obj)
       is_element_set = true
       idx = ridx
     case '"':
       if is_element_set == true {
-        panicJsonEx("syntax error", str, idx)
+        panicJsonEx("syntax error(arr\")", str, idx)
       }
       sub_idxes := re_string.FindStringSubmatchIndex(str[idx:])
       element := str[idx+sub_idxes[2]:idx+sub_idxes[3]]
@@ -133,29 +123,8 @@ func parseJsonEx_arr (str string, idx int) (JsonExValue, int) {
   return JsonExValue{"array", result, arr_comments}, idx
 }
 
-func parseJsonEx_obj (str string, idx int) (JsonExValue, int) {
+func parseJsonEx_obj (str string, idx int, obj_comments []string) (JsonExValue, int) {
   result := map[string]JsonExValue{}
-
-
-  // parse obj_comments
-  obj_comments := []string{}
-  for idx+=1; idx<len(str); idx+=1 {
-    if strings.Contains(blank_cut_set, str[idx:idx+1]) {
-      continue
-    }
-    if str[idx] != '/' {
-      idx -= 1
-      break
-    }
-
-    sub_idxes := re_jsonex_comment.FindStringSubmatchIndex(str[idx:])
-    if len(sub_idxes) <= 0 {
-      panicJsonEx("syntax err", str, idx)
-    }
-    obj_comments = append(obj_comments, str[idx+sub_idxes[2]: idx+sub_idxes[3]])
-    idx += sub_idxes[1]
-  }
-  
 
   // parse
   comments := []string{}
@@ -178,16 +147,16 @@ func parseJsonEx_obj (str string, idx int) (JsonExValue, int) {
       idx += sub_idxes[1]
     case '}':
       if is_key_set == true && is_value_set == false {
-        panicJsonEx("value must be set", str, idx)
+        result[key] = JsonExValue{"string", value_str, comments}
       }
       return JsonExValue{"object", result, obj_comments}, idx
     case '{':
       if is_key_set == false {
         panicJsonEx("key must be set first before", str, idx)
       }else if is_value_set == true {
-        panicJsonEx("value is already set", str, idx)
+        panicJsonEx("value is already set({)", str, idx)
       }
-      obj, ridx := parseJsonEx_obj(str, idx)
+      obj, ridx := parseJsonEx_obj(str, idx, comments)
       result[key] = obj
       is_value_set = true
       idx = ridx
@@ -195,9 +164,9 @@ func parseJsonEx_obj (str string, idx int) (JsonExValue, int) {
       if is_key_set == false {
         panicJsonEx("key must be set first before", str, idx)
       }else if is_value_set == true {
-        panicJsonEx("value is already set", str, idx)
+        panicJsonEx("value is already set([)", str, idx)
       }
-      arr, ridx := parseJsonEx_arr(str, idx)
+      arr, ridx := parseJsonEx_arr(str, idx, comments)
       result[key] = arr
       is_value_set = true
       idx = ridx
@@ -217,9 +186,10 @@ func parseJsonEx_obj (str string, idx int) (JsonExValue, int) {
           panicJsonEx("invalid string", str, idx)
         }
         result[key] = JsonExValue{"string", `"` + value + `"`, comments}
+        idx += sub_idxes[1] - 1
         is_value_set = true
       }else {
-        panicJsonEx("syntax error", str, idx)
+        panicJsonEx("syntax error(obj\")", str, idx)
       }
     case ',':
       if is_key_set == false {
@@ -243,6 +213,7 @@ func parseJsonEx_obj (str string, idx int) (JsonExValue, int) {
         key += str[idx:idx+1]
         continue
       }else if is_value_set == true {
+        fmt.Println(str[idx:idx+1])
         panicJsonEx("value is already set", str, idx)
       }
       value_str += str[idx:idx+1]
