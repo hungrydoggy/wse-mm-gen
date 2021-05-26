@@ -535,6 +535,8 @@ func convertTypeFromSql (sql_type string) string {
   case strings.HasPrefix(sql_type, "varchar("),
        strings.HasPrefix(sql_type, "text"    ):
     return "String"
+  case sql_type == "point":
+    return "Point"
   case strings.HasPrefix(sql_type, "datetime"):
     return "DateTime"
   case strings.HasPrefix(sql_type, "enum("):
@@ -623,13 +625,17 @@ func Tprintf (template_name string, template_str string, data map[string]interfa
   return buf.String()
 }
 
-const m_import_str = `import 'package:mm/model.dart';
+const m_import_str = `import 'dart:math';
+
+import 'package:mm/model.dart';
 import 'package:mm/property.dart';
 import 'package:wse_mm/wse_model.dart';
 
 `
 
-const vm_import_str = `import 'package:mm/view_model.dart';
+const vm_import_str = `import 'dart:math';
+
+import 'package:mm/view_model.dart';
 import 'package:mm/vm_property.dart';
 
 `

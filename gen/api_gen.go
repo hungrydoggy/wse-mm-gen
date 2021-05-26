@@ -64,7 +64,8 @@ func GenApi (tablename_schemainfo_map map[string]*table_schema.SchemaInfo) {
   _, err = f.WriteString(
       strings.Join(
         []string{
-          "import 'dart:convert';\n",
+          "import 'dart:convert';",
+          "import 'dart:math';\n",
           "import 'package:mm/model.dart';",
           "import 'package:mm/property.dart';",
           "import 'package:wse_mm/wse_model.dart';",
@@ -243,12 +244,12 @@ func genCustomApi (
     switch v.Type {
     case "object":
       _, err := f.WriteString(
-          fmt.Sprintf("      %sdynamic%s %s,\n", required_str, optional_chr, k),
+          fmt.Sprintf("      %sdynamic%s %s,\n", required_str, optional_chr, makePropName(k)),
       )
       check(err)
     case "array":
       _, err := f.WriteString(
-          fmt.Sprintf("      %sList<dynamic>%s %s,\n", required_str, optional_chr, k),
+          fmt.Sprintf("      %sList<dynamic>%s %s,\n", required_str, optional_chr, makePropName(k)),
       )
       check(err)
     case "string":
@@ -258,7 +259,7 @@ func genCustomApi (
             required_str,
             convertTypeFromDoc(v.Value.(string)),
             optional_chr,
-            k,
+            makePropName(k),
           ),
       )
       check(err)
@@ -295,7 +296,7 @@ func genCustomApi (
     }
 
     _, err = f.WriteString(
-      fmt.Sprintf("\n      '%[1]s': %[1]s,", k),
+      fmt.Sprintf("\n      '%s': %s,", k, makePropName(k)),
     )
     check(err)
   }
@@ -316,7 +317,7 @@ func genCustomApi (
     }
 
     _, err = f.WriteString(
-      fmt.Sprintf("    if (%[1]s != null)\n      params['%[1]s'] = %[1]s;\n", k),
+      fmt.Sprintf("    if (%[1]s != null)\n      params['%[2]s'] = %[1]s;\n", makePropName(k), k),
     )
     check(err)
   }
@@ -707,6 +708,9 @@ func makeFuncNameFromPath (path string) string {
             funk.Map(
               strings.Split(p, "-"),
               func (s string) string {
+                if len(s) <= 0 {
+                  return ""
+                }
                 return strings.ToUpper(s[0:1]) + s[1:]
               },
             ).([]string),
