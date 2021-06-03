@@ -201,7 +201,7 @@ func genCustomApi (
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  Future<%s> %s_%s (",
+        "  static Future<%s> %s_%s (",
         result_class,
         makeFuncNameFromPath(ad_info.Method),
         makeFuncNameFromPath(ad_info.Path),
@@ -281,7 +281,7 @@ func genCustomApi (
 
   /// gen codes
   // params - required
-  _, err = f.WriteString("    final params = {")
+  _, err = f.WriteString("    final params = <String, dynamic>{")
   check(err)
   for k, v := range request_map {
     is_optional := funk.Reduce(
@@ -339,7 +339,7 @@ func genCustomApi (
   
   _, err = f.WriteString(
       fmt.Sprintf(
-        "      final res_json = json.decode(res.body);\n      return %s(res_json);\n",
+        "    final res_json = json.decode(res.body);\n    final result = %s(res_json);\n    await result.init();\n    return result;\n",
         result_class,
       ),
   )
@@ -375,7 +375,7 @@ func genCrudApi_delete (f *os.File, info *table_schema.SchemaInfo, path string) 
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  Future<void> delete_%s (int id) async {\n",
+        "  static Future<void> delete_%s (int id) async {\n",
         makeFuncNameFromPath(path),
       ),
   )
@@ -402,7 +402,7 @@ func genCrudApi_update (f *os.File, info *table_schema.SchemaInfo, path string) 
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  Future<void> update_%s (\n    int id,\n    { required dynamic params }\n  ) async {",
+        "  static Future<void> update_%s (\n    int id,\n    { required dynamic params }\n  ) async {",
         makeFuncNameFromPath(path),
       ),
   )
@@ -445,7 +445,7 @@ func genCrudApi_getById (f *os.File, info *table_schema.SchemaInfo, path string)
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  Future<%[1]sVM?> get_%[2]s (\n    int id,\n    {\n      dynamic? options,\n      bool?    need_count,\n    }\n  ) async {",
+        "  static Future<%[1]sVM?> get_%[2]s (\n    int id,\n    {\n      dynamic? options,\n      bool?    need_count,\n    }\n  ) async {",
         info.Table_name,
         makeFuncNameFromPath(path),
       ),
@@ -469,7 +469,7 @@ func genCrudApi_get (f *os.File, info *table_schema.SchemaInfo, path string) {
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  Future<List<%[1]sVM>> get_%[2]s ({\n      required dynamic options,\n      dynamic? order_query,\n  }) async {",
+        "  static Future<List<%[1]sVM>> get_%[2]s ({\n      required dynamic options,\n      dynamic? order_query,\n  }) async {",
         info.Table_name,
         makeFuncNameFromPath(path),
       ),
@@ -493,7 +493,7 @@ func genCrudApi_create (f *os.File, info *table_schema.SchemaInfo, path string) 
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  Future<%[1]sVM> post_%[2]s ({%[3]s\n  }) async {\n",
+        "  static Future<%[1]sVM> post_%[2]s ({%[3]s\n  }) async {\n",
         info.Table_name,
         makeFuncNameFromPath(path),
         strings.Join(
@@ -620,7 +620,7 @@ func genCrudApi_create (f *os.File, info *table_schema.SchemaInfo, path string) 
   // return view model
   _, err = f.WriteString(
       fmt.Sprintf(
-        "    return %sVM({\n",
+        "    final vm = %sVM({\n",
         info.Table_name,
       ),
   )
@@ -648,7 +648,7 @@ func genCrudApi_create (f *os.File, info *table_schema.SchemaInfo, path string) 
   
 
   // tail
-  _, err = f.WriteString("    });\n  }\n\n")
+  _, err = f.WriteString("    });\n    await vm.init();\n    return vm;\n  }\n\n")
   check(err)
 }
 
@@ -793,7 +793,10 @@ var api_crud_get_codes_fmt = `
         options,
         order_query: order_query,
     );
-    return res_jsons.map((e) => %[1]sVM(e)).toList();
+    final vms = res_jsons.map((e) => %[1]sVM(e)).toList();
+    for (final v in vms)
+      await v.init();
+    return vms;
 `
 
 var api_crud_get_by_id_codes_fmt = `
@@ -805,7 +808,10 @@ var api_crud_get_by_id_codes_fmt = `
     );
     if (res_jsons.isEmpty)
       return null;
-    return %[1]sVM(res_jsons[0]);
+
+    final vm = %[1]sVM(res_jsons[0]);
+    await vm.init();
+    return vm;
 `
 
 var api_custom_call_api_fmt = `
