@@ -402,7 +402,7 @@ func genCrudApi_update (f *os.File, info *table_schema.SchemaInfo, path string) 
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  static Future<void> update_%s (\n    int id,\n    { required dynamic params }\n  ) async {",
+        "  static Future<void> put_%s (\n    int id,\n    { required dynamic params }\n  ) async {",
         makeFuncNameFromPath(path),
       ),
   )
