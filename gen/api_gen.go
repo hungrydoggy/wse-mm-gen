@@ -728,6 +728,8 @@ func convertTypeFromDoc (doc_type string) string {
   switch doc_type {
   case "INTEGER", "INT":
     return "int"
+  case "DOUBLE":
+    return "double"
   case "STRING", "STR", "PASSWORD", "PWD", "TEXT":
     return "String"
   case "BOOLEAN", "BOOL":

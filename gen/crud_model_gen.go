@@ -532,6 +532,8 @@ func convertTypeFromSql (sql_type string) string {
     return "int"
   case sql_type == "tinyint(1)":
     return "bool"
+  case sql_type == "double":
+    return "double"
   case strings.HasPrefix(sql_type, "varchar("),
        strings.HasPrefix(sql_type, "text"    ):
     return "String"
