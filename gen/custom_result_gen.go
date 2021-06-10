@@ -4,6 +4,7 @@ import (
   "fmt"
   "os"
   "regexp"
+  "sort"
   "strings"
 
   funk "github.com/thoas/go-funk"
@@ -57,7 +58,13 @@ func GenCustomResult (
 
 
   // sub classes
-  for sub_name, jsonex := range subresultname_jsonex_map {
+  subresult_names := []string{}
+  for sub_name := range subresultname_jsonex_map {
+    subresult_names = append(subresult_names, sub_name)
+  }
+  sort.Strings(subresult_names)
+  for _, sub_name := range subresult_names {
+    jsonex := subresultname_jsonex_map[sub_name]
     genCustomResultClass(f, sub_name, tablename_schemainfo_map, &jsonex, false)
   }
 
@@ -135,8 +142,16 @@ func genCustomResultInitFunc (
     tablename_schemainfo_map map[string]*table_schema.SchemaInfo,
     response_jsonex *JsonExValue,
 ) {
+  res_json := response_jsonex.Value.(map[string]JsonExValue)
 
-  for k, v := range response_jsonex.Value.(map[string]JsonExValue) {
+  res_keys := []string{}
+  for k := range res_json {
+    res_keys = append(res_keys, k)
+  }
+  sort.Strings(res_keys)
+
+  for _, k := range res_keys {
+    v := res_json[k]
     switch v.Type {
     case "object":
       _, err := f.WriteString(
@@ -174,7 +189,16 @@ func genSetCustomResultProperties (
     response_jsonex *JsonExValue,
 ) {
 
-  for k, v := range response_jsonex.Value.(map[string]JsonExValue) {
+  res_json := response_jsonex.Value.(map[string]JsonExValue)
+
+  res_keys := []string{}
+  for k := range res_json {
+    res_keys = append(res_keys, k)
+  }
+  sort.Strings(res_keys)
+
+  for _, k := range res_keys {
+    v := res_json[k]
     _, err := f.WriteString(
         fmt.Sprintf(
           "    if (json.containsKey('%s')) {\n",
@@ -293,7 +317,16 @@ func genCustomResultProperties (
     tablename_schemainfo_map map[string]*table_schema.SchemaInfo,
     response_jsonex *JsonExValue,
 ) {
-  for k, v := range response_jsonex.Value.(map[string]JsonExValue) {
+  res_json := response_jsonex.Value.(map[string]JsonExValue)
+
+  res_keys := []string{}
+  for k := range res_json {
+    res_keys = append(res_keys, k)
+  }
+  sort.Strings(res_keys)
+
+  for _, k := range res_keys {
+    v := res_json[k]
     if k == "message" {
       continue
     }

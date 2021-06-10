@@ -215,7 +215,14 @@ func genCustomApi (
     check(err)
   }
 
-  for k, v := range request_map {
+  request_keys := []string{}
+  for k := range request_map {
+    request_keys = append(request_keys, k)
+  }
+  sort.Strings(request_keys)
+
+  for _, k := range request_keys {
+    v := request_map[k]
     is_optional := funk.Reduce(
         v.Comments,
         func (acc bool, c string) bool {
@@ -283,7 +290,8 @@ func genCustomApi (
   // params - required
   _, err = f.WriteString("    final params = <String, dynamic>{")
   check(err)
-  for k, v := range request_map {
+  for _, k := range request_keys {
+    v := request_map[k]
     is_optional := funk.Reduce(
         v.Comments,
         func (acc bool, c string) bool {
@@ -304,7 +312,8 @@ func genCustomApi (
   check(err)
 
   // params - optional
-  for k, v := range request_map {
+  for _, k := range request_keys {
+    v := request_map[k]
     is_optional := funk.Reduce(
         v.Comments,
         func (acc bool, c string) bool {

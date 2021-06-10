@@ -4,6 +4,7 @@ import (
   "database/sql"
   "fmt"
   "log"
+  "sort"
   "strings"
 
   _ "github.com/go-sql-driver/mysql"
@@ -61,6 +62,13 @@ func FetchTableSchema (db *sql.DB, table_name string) []*TableScheme {
 
     schema = append(schema, &ts)
   }
+
+  sort.Slice(
+      schema,
+      func (a, b int) bool {
+        return strings.Compare(schema[a].Field, schema[b].Field) < 0;
+      },
+  )
 
   return schema
 }

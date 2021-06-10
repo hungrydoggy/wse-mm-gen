@@ -5,6 +5,7 @@ import (
   "fmt"
   "os"
   "regexp"
+  "sort"
   "strings"
 	"text/template"
 
@@ -38,6 +39,13 @@ func GenModelForCrud (
       )
     }
   }
+
+  sort.Slice(
+      schema,
+      func (a, b int) bool {
+        return strings.Compare(schema[a].Field, schema[b].Field) < 0;
+      },
+  )
 
   genModel(table_name, schema, manyname_modelname_map, "id", "int", "0")
   genViewModel(table_name, schema, manyname_modelname_map, "id", "int", "0")
@@ -80,12 +88,19 @@ func genViewModel (
   for _, model_name := range manyname_modelname_map {
     viewmodel_check_map[model_name + "VM"] = true
   }
-  for view_model := range viewmodel_check_map {
-    if view_model == table_name + "VM" {
+
+  vm_names := []string{}
+  for vm := range viewmodel_check_map {
+    vm_names = append(vm_names, vm)
+  }
+  sort.Strings(vm_names)
+
+  for _, vm := range vm_names {
+    if vm == table_name + "VM" {
       continue
     }
     _, err = f.WriteString(
-        fmt.Sprintf("import './%s.dart';\n", view_model),
+        fmt.Sprintf("import './%s.dart';\n", vm),
     )
     check(err)
   }
@@ -223,13 +238,21 @@ func genViewModel (
   for _, model_name := range manyname_modelname_map {
     model_name_max_len = funk.MaxInt([]int{model_name_max_len, len(model_name)}).(int)
   }
-  for many_name, model_name := range manyname_modelname_map {
+
+  many_names := []string{}
+  for mn := range manyname_modelname_map {
+    many_names = append(many_names, mn)
+  }
+  sort.Strings(many_names)
+
+  for _, mn := range many_names {
+    model_name := manyname_modelname_map[mn]
     _, err = f.WriteString(
         fmt.Sprintf(
           "  List<%[1]*[2]s>? _%[3]s;\n",
           model_name_max_len + 2,
           model_name + "VM",
-          makePropName(many_name),
+          makePropName(mn),
         ),
     )
     check(err)
@@ -243,14 +266,16 @@ func genViewModel (
   for many_name := range manyname_modelname_map {
     many_name_max_len = funk.MaxInt([]int{many_name_max_len, len(many_name)}).(int)
   }
-  for many_name, model_name := range manyname_modelname_map {
+
+  for _, mn := range many_names {
+    model_name := manyname_modelname_map[mn]
     _, err = f.WriteString(
         fmt.Sprintf(
           "  List<%[1]*[2]s>? get %[3]*[4]s => _%[4]s;\n",
           model_name_max_len + 2,
           model_name + "VM",
           many_name_max_len,
-          makePropName(many_name),
+          makePropName(mn),
         ),
     )
     check(err)
@@ -336,11 +361,18 @@ func genVMConstructor(
 
 
   // has-many associations
-  for many_name, model_name := range manyname_modelname_map {
+  many_names := []string{}
+  for mn := range manyname_modelname_map {
+    many_names = append(many_names, mn)
+  }
+  sort.Strings(many_names)
+
+  for _, mn := range many_names {
+    model_name := manyname_modelname_map[mn]
     _, err = f.WriteString(
         fmt.Sprintf(
           "    if (json.containsKey('*%s')) {\n",
-          many_name,
+          mn,
         ),
     )
     check(err)
@@ -348,7 +380,7 @@ func genVMConstructor(
     _, err = f.WriteString(
         fmt.Sprintf(
           "      var ni = 0;\n      for (final nested_json in json['*%[1]s']) {\n        final vm = %[2]s(nested_json, vm_name: '*%[1]s.' + ni.toString());\n        _%[1]s!.add(vm);\n        nested_vms.add(vm);\n        ni += 1;\n      }\n\n",
-          many_name,
+          mn,
           model_name + "VM",
         ),
     )
@@ -395,18 +427,23 @@ func genModel (
   }
 
   // from many-name
-  for _, model_name := range manyname_modelname_map {
-    othermodelname_check_map[model_name] = true
+  for _, mn := range manyname_modelname_map {
+    othermodelname_check_map[mn] = true
   }
+  model_names := []string{}
+  for mn := range othermodelname_check_map {
+    model_names = append(model_names, mn)
+  }
+  sort.Strings(model_names)
 
   // generate
-  for model_name := range othermodelname_check_map {
-    if model_name == table_name {
+  for _, mn := range model_names {
+    if mn == table_name {
       continue
     }
 
     _, err = f.WriteString(
-        fmt.Sprintf("import './%s.dart';\n", model_name),
+        fmt.Sprintf("import './%s.dart';\n", mn),
     )
     check(err)
   }
@@ -460,6 +497,13 @@ func genModel (
 
 
   /// model handler
+  // ready
+  many_names := []string{}
+  for mn := range manyname_modelname_map {
+    many_names = append(many_names, mn)
+  }
+  sort.Strings(many_names)
+
   // make key_nestedhandler_str
   key_nestedhandler_str := "{"
   associations := funk.Filter(
@@ -470,8 +514,9 @@ func genModel (
     info := ass.Association_info
     key_nestedhandler_str += fmt.Sprintf("\n    '*%s': %s.mh,", info.As_name, info.Model_name)
   }
-  for many_name, model_name := range manyname_modelname_map {
-    key_nestedhandler_str += fmt.Sprintf("\n    '*%s': %s.mh,", many_name, model_name)
+  for _, mn := range many_names {
+    model_name := manyname_modelname_map[mn]
+    key_nestedhandler_str += fmt.Sprintf("\n    '*%s': %s.mh,", mn, model_name)
   }
   if key_nestedhandler_str != "{" {
     key_nestedhandler_str += "\n  "
