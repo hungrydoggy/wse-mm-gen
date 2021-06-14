@@ -510,7 +510,7 @@ func genCrudApi_create (f *os.File, info *table_schema.SchemaInfo, path string) 
             funk.Filter(
               info.Schema,
               func (sch *table_schema.TableScheme) bool {
-                return sch.Field != "id" && sch.Field != "createdAt" && sch.Field != "updatedAt";
+                return sch.Field != "id" && sch.Field != "createdAt" && sch.Field != "updatedAt" && sch.Field != "#password_hash";
               },
             ),
             func (sch *table_schema.TableScheme) string {
