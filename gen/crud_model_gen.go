@@ -379,7 +379,7 @@ func genVMConstructor(
 
     _, err = f.WriteString(
         fmt.Sprintf(
-          "      var ni = 0;\n      for (final nested_json in json['*%[1]s']) {\n        final vm = %[2]s(nested_json, vm_name: '*%[1]s.' + ni.toString());\n        _%[1]s!.add(vm);\n        nested_vms.add(vm);\n        ni += 1;\n      }\n\n",
+          "      var ni = 0;\n      _%[1]s = <%[2]s>[];\n      for (final nested_json in json['*%[1]s']) {\n        final vm = %[2]s(nested_json, vm_name: '*%[1]s.' + ni.toString());\n        _%[1]s!.add(vm);\n        nested_vms.add(vm);\n        ni += 1;\n      }\n\n",
           mn,
           model_name + "VM",
         ),
