@@ -191,7 +191,7 @@ func genViewModel (
           "  %-[1]*[2]s _%[3]s;\n",
           fk_model_max_len + 3,
           info.Model_name + "VM?",
-          info.As_name,
+          makePropName(info.As_name),
         ),
     )
     check(err)
@@ -206,7 +206,7 @@ func genViewModel (
       func (acc int, sch *table_schema.TableScheme) int {
         str_len := 0
         if sch.FieldType == table_schema.ASSOCIATION || sch.FieldType == table_schema.ASSO_HIDDEN {
-          str_len = len(sch.Association_info.As_name)
+          str_len = len(makePropName(sch.Association_info.As_name))
         }
         return funk.MaxInt([]int{acc, str_len}).(int)
       },
@@ -224,7 +224,7 @@ func genViewModel (
           fk_model_max_len + 3,
           info.Model_name + "VM?",
           as_name_max_len,
-          info.As_name,
+          makePropName(info.As_name),
         ),
     )
     check(err)
@@ -351,8 +351,9 @@ func genVMConstructor(
     }
     _, err = f.WriteString(
         fmt.Sprintf(
-          "    if (json.containsKey('*%[1]s')) {\n      _%[1]s = %[2]s(json['*%[1]s'], vm_name: '*%[1]s');\n      nested_vms.add(_%[1]s!);\n    }\n\n",
+          "    if (json.containsKey('*%[1]s')) {\n      _%[2]s = %[3]s(json['*%[1]s'], vm_name: '*%[1]s');\n      nested_vms.add(_%[2]s!);\n    }\n\n",
           sch.Association_info.As_name,
+          makePropName(sch.Association_info.As_name),
           sch.Association_info.Model_name + "VM",
         ),
     )
