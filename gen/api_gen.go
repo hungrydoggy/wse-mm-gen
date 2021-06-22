@@ -201,7 +201,7 @@ func genCustomApi (
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  static Future<%s> %s_%s (\n    String? token,",
+        "  static Future<%s> %s_%s ({\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n",
         result_class,
         makeFuncNameFromPath(ad_info.Method),
         makeFuncNameFromPath(ad_info.Path),
@@ -210,10 +210,6 @@ func genCustomApi (
   check(err)
 
   request_map := request_jsonex.Value.(map[string]JsonExValue)
-  if len(request_map) > 0 {
-    _, err := f.WriteString("\n    {")
-    check(err)
-  }
 
   request_keys := []string{}
   for k := range request_map {
@@ -277,11 +273,7 @@ func genCustomApi (
 
     
   // end of api head
-  if len(request_map) > 0 {
-    _, err := f.WriteString("    }")
-    check(err)
-  }
-  _, err = f.WriteString("\n  ) async {\n")
+  _, err = f.WriteString("\n  }) async {\n")
   check(err)
 
 
@@ -384,7 +376,7 @@ func genCrudApi_delete (f *os.File, info *table_schema.SchemaInfo, path string) 
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  static Future<void> delete_%s (String? token, int id) async {\n",
+        "  static Future<void> delete_%s (\n    int id,\n    {\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name\n    }\n  ) async {\n",
         makeFuncNameFromPath(path),
       ),
   )
@@ -394,7 +386,7 @@ func genCrudApi_delete (f *os.File, info *table_schema.SchemaInfo, path string) 
   // write codes
   _, err = f.WriteString(
       fmt.Sprintf(
-        "    await Model.deleteModel(%s.mh, id);\n",
+        "    await Model.deleteModel(%s.mh, id, user_data: { 'token_name': token_name });\n",
         info.Table_name,
       ),
   )
@@ -411,7 +403,7 @@ func genCrudApi_update (f *os.File, info *table_schema.SchemaInfo, path string) 
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  static Future<void> put_%s (\n    String? token,\n    int id,\n    { required dynamic params }\n  ) async {",
+        "  static Future<void> put_%s (\n    int id,\n    {\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n\n      required dynamic params,\n    }\n  ) async {",
         makeFuncNameFromPath(path),
       ),
   )
@@ -440,7 +432,12 @@ func genCrudApi_update (f *os.File, info *table_schema.SchemaInfo, path string) 
     )
     check(err)
   }
-  _, err = f.WriteString("\n    await Admin(id).update(property_value_map);\n")
+  _, err = f.WriteString(
+      fmt.Sprintf(
+        "\n    await %s(id).update(property_value_map, { 'token_name': token_name });\n",
+        info.Table_name,
+      ),
+  )
   check(err)
 
 
@@ -454,7 +451,7 @@ func genCrudApi_getById (f *os.File, info *table_schema.SchemaInfo, path string)
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  static Future<%[1]sVM?> get_%[2]s (\n    String? token,\n    int id,\n    {\n      dynamic options,\n      bool?   need_count,\n    }\n  ) async {",
+        "  static Future<%[1]sVM?> get_%[2]s (\n    int id,\n    {\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n\n      dynamic options,\n      bool?   need_count,\n    }\n  ) async {",
         info.Table_name,
         makeFuncNameFromPath(path),
       ),
@@ -478,7 +475,7 @@ func genCrudApi_get (f *os.File, info *table_schema.SchemaInfo, path string) {
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  static Future<List<%[1]sVM>> get_%[2]s (\n    String? token,\n    {\n      required dynamic options,\n      dynamic  order_query,\n    }\n  ) async {",
+        "  static Future<List<%[1]sVM>> get_%[2]s ({\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n\n      required dynamic options,\n      dynamic  order_query,\n  }) async {",
         info.Table_name,
         makeFuncNameFromPath(path),
       ),
@@ -502,7 +499,7 @@ func genCrudApi_create (f *os.File, info *table_schema.SchemaInfo, path string) 
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  static Future<%[1]sVM> post_%[2]s (\n    String? token,\n    {%[3]s\n    }\n  ) async {\n",
+        "  static Future<%[1]sVM> post_%[2]s ({\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n%[3]s\n  }) async {\n",
         info.Table_name,
         makeFuncNameFromPath(path),
         strings.Join(
@@ -619,7 +616,7 @@ func genCrudApi_create (f *os.File, info *table_schema.SchemaInfo, path string) 
   // create model
   _, err = f.WriteString(
       fmt.Sprintf(
-        "    final m = (await Model.createModel(\n        %[1]s.mh,\n        property_value_map,\n    )) as %[1]s;\n",
+        "    final m = (await Model.createModel(\n        %[1]s.mh,\n        property_value_map,\n        user_data: { 'token_name': token_name }\n    )) as %[1]s;\n",
         info.Table_name,
       ),
   )
@@ -802,6 +799,7 @@ var api_crud_get_codes_fmt = `
     final res_jsons = await WseModel.find(
         %[1]s.mh,
         options,
+        token_name : token_name,
         order_query: order_query,
     );
     final vms = res_jsons.map((e) => %[1]sVM(e)).toList();
@@ -814,6 +812,7 @@ var api_crud_get_by_id_codes_fmt = `
     final res_jsons = await WseModel.findById(
         %[1]s.mh,
         id,
+        token_name: token_name,
         options   : options,
         need_count: need_count,
     );
@@ -826,9 +825,13 @@ var api_crud_get_by_id_codes_fmt = `
 `
 
 var api_custom_call_api_fmt = `
+    var token = WseModel.token;
+    if (token_name != null)
+      token = WseModel.getNamedToken(token_name);
+
     final res = await WseApiCall.%s(
       '${WseModel.api_server_address}%s',
-      token: WseModel.token,
+      token: token,
       %s: params,
     );
 `
