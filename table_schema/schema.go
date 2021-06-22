@@ -124,9 +124,6 @@ func parseComment_setAssociation (ts *TableScheme, setting_str string) {
   }
   if as_name[0] == '@' {
     as_name = as_name[1:]
-    if as_name[0] == '#' {
-      as_name = as_name[1:]
-    }
   }
 
   // middle
