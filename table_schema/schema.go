@@ -78,6 +78,7 @@ const (
   NORMAL      FieldType = iota
   HIDDEN
   ASSOCIATION
+  ASSO_HIDDEN
 )
 
 type TableScheme struct {
@@ -102,53 +103,73 @@ type AssociationInfo struct {
 }
 
 
+func parseComment_setHidden (ts *TableScheme, setting_str string) {
+  ts.FieldType = HIDDEN
+  parts := strings.Split(setting_str, ".")
+  ts.Field = parts[0] // head
+  ts.Hidden_perms = strings.Split(parts[1], ":") // tail
+}
+
+func parseComment_setAssociation (ts *TableScheme, setting_str string) {
+  ts.FieldType = ASSOCIATION
+  parts := strings.Split(setting_str, ".")
+
+  // head
+  head := parts[0]
+  head_elms := strings.Split(head, ":")
+  ts.Field = head_elms[0]
+  as_name := ts.Field[:len(ts.Field)-3]
+  if len(head_elms) >= 2 {
+    as_name = head_elms[1]
+  }
+  if as_name[0] == '@' {
+    as_name = as_name[1:]
+    if as_name[0] == '#' {
+      as_name = as_name[1:]
+    }
+  }
+
+  // middle
+  middle := parts[1]
+  middle_elms := strings.Split(middle, ":")
+  model_name := middle_elms[0]
+  model_fk   := "id"
+  many_name  := ""
+  if len(middle_elms) >= 2 {
+    model_fk = middle_elms[1]
+  }
+  if len(middle_elms) >= 3 {
+    many_name = middle_elms[2]
+  }
+
+  ts.Association_info = AssociationInfo{
+    as_name,
+    model_name,
+    model_fk,
+    many_name,
+  }
+}
 
 func parseComment (ts *TableScheme) {
-  setting_str, comment := extractSettingWithComment(ts)
+  setting_str, comment := extractSettingWithComment(ts.Field, ts.Comment)
   if len(setting_str) <= 0 {
     return
   }
   
   switch setting_str[0] {
   case '#':
-    ts.FieldType = HIDDEN
-    parts := strings.Split(setting_str, ".")
-    ts.Field = parts[0] // head
-    ts.Hidden_perms = strings.Split(parts[1], ":") // tail
+    parseComment_setHidden(ts, setting_str)
   case '@':
-    ts.FieldType = ASSOCIATION
-    parts := strings.Split(setting_str, ".")
-
-    // head
-    head := parts[0]
-    head_elms := strings.Split(head, ":")
-    ts.Field = head_elms[0]
-    as_name := ts.Field[:len(ts.Field)-3]
-    if len(head_elms) >= 2 {
-      as_name = head_elms[1]
-    }
-    if as_name[0] == '@' {
-      as_name = as_name[1:]
-    }
-
-    // middle
-    middle := parts[1]
-    middle_elms := strings.Split(middle, ":")
-    model_name := middle_elms[0]
-    model_fk   := "id"
-    many_name  := ""
-    if len(middle_elms) >= 2 {
-      model_fk = middle_elms[1]
-    }
-    if len(middle_elms) >= 3 {
-      many_name = middle_elms[2]
-    }
-
-    ts.Association_info = AssociationInfo{
-      as_name,
-      model_name,
-      model_fk,
-      many_name,
+    if setting_str[1] != '#' {
+      // association
+      parseComment_setAssociation(ts, setting_str)
+    }else {
+      // association-hidden
+      hd_setting_str, cmt := extractSettingWithComment(ts.Field, comment)
+      comment = cmt
+      parseComment_setAssociation(ts, setting_str   )
+      parseComment_setHidden     (ts, hd_setting_str)
+      ts.FieldType = ASSO_HIDDEN
     }
   default:
     ts.FieldType = NORMAL
@@ -157,8 +178,8 @@ func parseComment (ts *TableScheme) {
   ts.Comment = comment
 }
 
-func extractSettingWithComment (ts *TableScheme) (string, string) {
-  lines := strings.Split(ts.Comment, "\n")
+func extractSettingWithComment (field string, comment string) (string, string) {
+  lines := strings.Split(comment, "\n")
 
   first_line := strings.Trim(lines[0], " ")
   if len(first_line) <= 0 || first_line[0] != '&' {
@@ -166,9 +187,9 @@ func extractSettingWithComment (ts *TableScheme) (string, string) {
   }else {
     setting_str := first_line[1:]
     if setting_str[0] == ':' || setting_str[0] == '.' {
-      setting_str = ts.Field + setting_str
+      setting_str = field + setting_str
     }else {
-      setting_str = ts.Field + "." + setting_str
+      setting_str = field + "." + setting_str
     }
     return setting_str, strings.Join(lines[1:], "\n")
   }

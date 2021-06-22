@@ -60,7 +60,7 @@ func main() {
   // make schemainfo.Manyname_modelname_map
   for _, info := range tablename_schemainfo_map {
     for _, sch := range info.Schema {
-      if sch.FieldType != table_schema.ASSOCIATION {
+      if sch.FieldType != table_schema.ASSOCIATION || sch.FieldType != table_schema.ASSO_HIDDEN {
         continue
       }
       if sch.Association_info.Many_name != "" {

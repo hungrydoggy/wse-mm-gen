@@ -80,7 +80,7 @@ func genViewModel (
   // import view models
   viewmodel_check_map := map[string]bool{}
   for _, sch := range schema {
-    if sch.FieldType != table_schema.ASSOCIATION {
+    if sch.FieldType != table_schema.ASSOCIATION && sch.FieldType != table_schema.ASSO_HIDDEN {
       continue
     }
     viewmodel_check_map[sch.Association_info.Model_name + "VM"] = true
@@ -173,7 +173,7 @@ func genViewModel (
       schema,
       func (acc int, sch *table_schema.TableScheme) int {
         str_len := 0
-        if sch.FieldType == table_schema.ASSOCIATION {
+        if sch.FieldType == table_schema.ASSOCIATION || sch.FieldType == table_schema.ASSO_HIDDEN {
           str_len = len(sch.Association_info.Model_name)
         }
         return funk.MaxInt([]int{acc, str_len}).(int)
@@ -181,7 +181,7 @@ func genViewModel (
       0,
   ).(int)
   for _, sch := range schema {
-    if sch.FieldType != table_schema.ASSOCIATION {
+    if sch.FieldType != table_schema.ASSOCIATION && sch.FieldType != table_schema.ASSO_HIDDEN {
       continue
     }
 
@@ -205,7 +205,7 @@ func genViewModel (
       schema,
       func (acc int, sch *table_schema.TableScheme) int {
         str_len := 0
-        if sch.FieldType == table_schema.ASSOCIATION {
+        if sch.FieldType == table_schema.ASSOCIATION || sch.FieldType == table_schema.ASSO_HIDDEN {
           str_len = len(sch.Association_info.As_name)
         }
         return funk.MaxInt([]int{acc, str_len}).(int)
@@ -213,7 +213,7 @@ func genViewModel (
       0,
   ).(int)
   for _, sch := range schema {
-    if sch.FieldType != table_schema.ASSOCIATION {
+    if sch.FieldType != table_schema.ASSOCIATION && sch.FieldType != table_schema.ASSO_HIDDEN {
       continue
     }
 
@@ -346,7 +346,7 @@ func genVMConstructor(
   check(err)
 
   for _, sch := range schema {
-    if sch.FieldType != table_schema.ASSOCIATION {
+    if sch.FieldType != table_schema.ASSOCIATION && sch.FieldType != table_schema.ASSO_HIDDEN {
       continue
     }
     _, err = f.WriteString(
@@ -421,7 +421,7 @@ func genModel (
 
   // from association
   for _, sch := range schema {
-    if sch.FieldType == table_schema.ASSOCIATION {
+    if sch.FieldType == table_schema.ASSOCIATION || sch.FieldType == table_schema.ASSO_HIDDEN {
       othermodelname_check_map[sch.Association_info.Model_name] = true
     }
   }
@@ -508,7 +508,9 @@ func genModel (
   key_nestedhandler_str := "{"
   associations := funk.Filter(
       schema,
-      func (sch *table_schema.TableScheme) bool { return sch.FieldType == table_schema.ASSOCIATION; },
+      func (sch *table_schema.TableScheme) bool {
+        return sch.FieldType == table_schema.ASSOCIATION || sch.FieldType == table_schema.ASSO_HIDDEN;
+      },
   ).([]*table_schema.TableScheme)
   for _, ass := range associations {
     info := ass.Association_info
@@ -649,7 +651,11 @@ func genProperties (f *os.File, table_name string, schema []*table_schema.TableS
 func makePropName (field_name string) string {
   switch field_name[0] {
   case '@':
-    return "fk_" + field_name[1:]
+    if field_name[1] == '#' {
+      return "fkhd_" + field_name[2:]
+    }else {
+      return "fk_" + field_name[1:]
+    }
   case '#':
     return "hd_" + field_name[1:]
   default:
