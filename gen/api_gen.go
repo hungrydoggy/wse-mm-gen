@@ -201,7 +201,7 @@ func genCustomApi (
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  static Future<%s> %s_%s (",
+        "  static Future<%s> %s_%s (\n    String? token,",
         result_class,
         makeFuncNameFromPath(ad_info.Method),
         makeFuncNameFromPath(ad_info.Path),
@@ -211,7 +211,7 @@ func genCustomApi (
 
   request_map := request_jsonex.Value.(map[string]JsonExValue)
   if len(request_map) > 0 {
-    _, err := f.WriteString("{")
+    _, err := f.WriteString("\n    {")
     check(err)
   }
 
@@ -278,10 +278,10 @@ func genCustomApi (
     
   // end of api head
   if len(request_map) > 0 {
-    _, err := f.WriteString("  }")
+    _, err := f.WriteString("    }")
     check(err)
   }
-  _, err = f.WriteString(") async {\n")
+  _, err = f.WriteString("\n  ) async {\n")
   check(err)
 
 
@@ -384,7 +384,7 @@ func genCrudApi_delete (f *os.File, info *table_schema.SchemaInfo, path string) 
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  static Future<void> delete_%s (int id) async {\n",
+        "  static Future<void> delete_%s (String? token, int id) async {\n",
         makeFuncNameFromPath(path),
       ),
   )
@@ -411,7 +411,7 @@ func genCrudApi_update (f *os.File, info *table_schema.SchemaInfo, path string) 
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  static Future<void> put_%s (\n    int id,\n    { required dynamic params }\n  ) async {",
+        "  static Future<void> put_%s (\n    String? token,\n    int id,\n    { required dynamic params }\n  ) async {",
         makeFuncNameFromPath(path),
       ),
   )
@@ -454,7 +454,7 @@ func genCrudApi_getById (f *os.File, info *table_schema.SchemaInfo, path string)
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  static Future<%[1]sVM?> get_%[2]s (\n    int id,\n    {\n      dynamic? options,\n      bool?    need_count,\n    }\n  ) async {",
+        "  static Future<%[1]sVM?> get_%[2]s (\n    String? token,\n    int id,\n    {\n      dynamic options,\n      bool?   need_count,\n    }\n  ) async {",
         info.Table_name,
         makeFuncNameFromPath(path),
       ),
@@ -478,7 +478,7 @@ func genCrudApi_get (f *os.File, info *table_schema.SchemaInfo, path string) {
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  static Future<List<%[1]sVM>> get_%[2]s ({\n      required dynamic options,\n      dynamic? order_query,\n  }) async {",
+        "  static Future<List<%[1]sVM>> get_%[2]s (\n    String? token,\n    {\n      required dynamic options,\n      dynamic  order_query,\n    }\n  ) async {",
         info.Table_name,
         makeFuncNameFromPath(path),
       ),
@@ -502,7 +502,7 @@ func genCrudApi_create (f *os.File, info *table_schema.SchemaInfo, path string) 
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  static Future<%[1]sVM> post_%[2]s ({%[3]s\n  }) async {\n",
+        "  static Future<%[1]sVM> post_%[2]s (\n    String? token,\n    {%[3]s\n    }\n  ) async {\n",
         info.Table_name,
         makeFuncNameFromPath(path),
         strings.Join(
