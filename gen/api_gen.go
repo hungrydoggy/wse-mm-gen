@@ -721,7 +721,6 @@ func genCrudApi_create (
 
 
   // create model
-  // TODO add postOnPost-func to user_data for non_model_data
   post_on_create_str := ""
   if non_model_data_jsonex != nil {
     _, err = f.WriteString("    var non_model_data = <String, dynamic>{};\n")
