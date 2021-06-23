@@ -198,14 +198,43 @@ func genCustomApi (
   )
 
 
-  // head
+  /// head
   _, err := f.WriteString(
       fmt.Sprintf(
-        "  static Future<%s> %s_%s ({\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n",
+        "  static Future<%s> %s_%s (",
         result_class,
         makeFuncNameFromPath(ad_info.Method),
         makeFuncNameFromPath(ad_info.Path),
       ),
+  )
+  check(err)
+
+
+  // req_params
+  req_params := funk.Filter(
+    funk.Map(
+      strings.Split(ad_info.Path, "/"),
+      func (p string) []string {
+        return convertReqParamPair(p)
+      },
+    ),
+    func (pair []string) bool {
+      return pair != nil
+    },
+  ).([][]string)
+  for _, pair := range req_params {
+    _, err := f.WriteString(
+        fmt.Sprintf(
+          "\n    String %s,",
+          pair[0],
+        ),
+    )
+    check(err)
+  }
+
+  // params
+  _, err = f.WriteString(
+      "\n    {\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n",
   )
   check(err)
 
@@ -273,7 +302,7 @@ func genCustomApi (
 
     
   // end of api head
-  _, err = f.WriteString("\n  }) async {\n")
+  _, err = f.WriteString("\n    }\n  ) async {\n")
   check(err)
 
 
@@ -328,11 +357,32 @@ func genCustomApi (
   if ad_info.Method == "post" || ad_info.Method == "put" {
     param_key = "body"
   }
+  call_path := strings.Join(
+      funk.Map(
+        strings.Split(ad_info.Path, "/"),
+        func (p string) string {
+          if p == "" {
+            return ""
+          }
+
+          rpp := convertReqParamPair(p)
+          if rpp != nil {
+            return fmt.Sprintf(
+                "$%s",
+                rpp[0],
+            )
+          }
+
+          return p
+        },
+      ).([]string),
+      "/",
+  )
   _, err = f.WriteString(
       fmt.Sprintf(
         api_custom_call_api_fmt,
         ad_info.Method,
-        ad_info.Path,
+        call_path,
         param_key,
       ),
   )
@@ -658,6 +708,25 @@ func genCrudApi_create (f *os.File, info *table_schema.SchemaInfo, path string) 
   check(err)
 }
 
+// returns [req_param, uppered_req_param]
+func convertReqParamPair (str string) []string {
+  subs := re_path_param.FindStringSubmatch(str)
+  if len(subs) > 0 {
+    req_param := subs[1]
+    if req_param == "" {
+      req_param = subs[2]
+    }
+    return []string {
+      req_param,
+      strings.ToUpper(
+        strings.ReplaceAll(strings.ReplaceAll(req_param, "-", ""), "_", ""),
+      ),
+    }
+  }
+
+  return nil
+}
+
 func makeModelNameFromPath (path string) string {
   return strings.Join(
       funk.Map(
@@ -667,15 +736,9 @@ func makeModelNameFromPath (path string) string {
             return ""
           }
 
-          subs := re_path_param.FindStringSubmatch(p)
-          if len(subs) > 0 {
-            sm := subs[1]
-            if len(sm) <= 0 {
-              sm = subs[2]
-            }
-            return strings.ToUpper(
-                strings.ReplaceAll(sm, "-", ""),
-            )
+          rpp := convertReqParamPair(p)
+          if rpp != nil {
+            return rpp[1]
           }
 
           r := strings.Join(
@@ -703,11 +766,9 @@ func makeFuncNameFromPath (path string) string {
             return ""
           }
 
-          subs := re_path_param.FindStringSubmatch(p)
-          if len(subs) > 0 {
-            return strings.ToUpper(
-                strings.ReplaceAll(subs[1], "-", ""),
-            )
+          rpp := convertReqParamPair(p)
+          if rpp != nil {
+            return rpp[1]
           }
 
           r := strings.Join(
