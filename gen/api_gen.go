@@ -139,6 +139,21 @@ func GenApi (tablename_schemainfo_map map[string]*table_schema.SchemaInfo) {
 
   // generate
   for _, ad_info := range api_doc_infos {
+    // extract request
+    fmt.Println("!!", ad_info.Path, ad_info.Method)
+    custom_api_part := api_detail_part[ad_info.Start_idx:]
+    req_idxes := re_api_request.FindStringIndex(custom_api_part)
+    res_idxes := re_api_response.FindStringIndex(custom_api_part[req_idxes[1]:])
+    request := re_md_code.FindStringSubmatch(custom_api_part[req_idxes[1]:req_idxes[1]+res_idxes[0]])[1]
+    request_jsonex := ParseJsonEx(request)
+
+    // extract response
+    other_idxes := re_other_statuses.FindStringIndex(custom_api_part[req_idxes[1]+res_idxes[1]:])
+    response_part := custom_api_part[req_idxes[1]+res_idxes[1]: req_idxes[1]+res_idxes[1]+other_idxes[1]]
+    sm_idxes_list := re_small_title.FindAllStringIndex(response_part, -1)
+    response := re_md_code.FindStringSubmatch(response_part[sm_idxes_list[0][1]:sm_idxes_list[1][0]])[1]
+    response_jsonex := ParseJsonEx(response)
+
     crud_sm := re_crud_api.FindStringSubmatch(ad_info.Comment)
     if len(crud_sm) > 0 {
       /// crud api
@@ -148,26 +163,10 @@ func GenApi (tablename_schemainfo_map map[string]*table_schema.SchemaInfo) {
       if ok == false {
         panic("no model name : " + model_name)
       }
-      genCrudApi(f, info, crud_type, ad_info.Path)
+      genCrudApi(f, info, crud_type, ad_info.Path, &ad_info, &request_jsonex, &response_jsonex)
 
     }else {
       /// custom api
-      // extract request
-      fmt.Println("!!", ad_info.Path, ad_info.Method)
-      custom_api_part := api_detail_part[ad_info.Start_idx:]
-      req_idxes := re_api_request.FindStringIndex(custom_api_part)
-      res_idxes := re_api_response.FindStringIndex(custom_api_part[req_idxes[1]:])
-      request := re_md_code.FindStringSubmatch(custom_api_part[req_idxes[1]:req_idxes[1]+res_idxes[0]])[1]
-
-      // extract response
-      other_idxes := re_other_statuses.FindStringIndex(custom_api_part[req_idxes[1]+res_idxes[1]:])
-      response_part := custom_api_part[req_idxes[1]+res_idxes[1]: req_idxes[1]+res_idxes[1]+other_idxes[1]]
-      sm_idxes_list := re_small_title.FindAllStringIndex(response_part, -1)
-      response := re_md_code.FindStringSubmatch(response_part[sm_idxes_list[0][1]:sm_idxes_list[1][0]])[1]
-
-      // gen
-      request_jsonex  := ParseJsonEx(request)
-      response_jsonex := ParseJsonEx(response)
       genCustomApi(f, tablename_schemainfo_map, &ad_info, &request_jsonex, &response_jsonex)
       GenCustomResult(tablename_schemainfo_map, &ad_info, &response_jsonex)
     }
@@ -402,26 +401,41 @@ func genCustomApi (
   check(err)
 }
 
-func genCrudApi (f *os.File, info *table_schema.SchemaInfo, crud_type string, path string) {
+func genCrudApi (
+    f *os.File,
+    info *table_schema.SchemaInfo,
+    crud_type string,
+    path string,
+    ad_info *ApiDocInfo,
+    request_jsonex  *JsonExValue,
+    response_jsonex *JsonExValue,
+) {
   switch crud_type {
   case "create":
-    genCrudApi_create(f, info, path)
+    genCrudApi_create(f, info, path, ad_info, request_jsonex, response_jsonex)
   case "read":
     if strings.Contains(path, "&lt;id&gt;") {
-      genCrudApi_getById(f, info, path)
+      genCrudApi_getById(f, info, path, ad_info, request_jsonex, response_jsonex)
     }else {
-      genCrudApi_get(f, info, path)
+      genCrudApi_get(f, info, path, ad_info, request_jsonex, response_jsonex)
     }
   case "update":
-    genCrudApi_update(f, info, path)
+    genCrudApi_update(f, info, path, ad_info, request_jsonex, response_jsonex)
   case "delete":
-    genCrudApi_delete(f, info, path)
+    genCrudApi_delete(f, info, path, ad_info, request_jsonex, response_jsonex)
   default:
     panic("unknown crud_type " + crud_type)
   }
 }
 
-func genCrudApi_delete (f *os.File, info *table_schema.SchemaInfo, path string) {
+func genCrudApi_delete (
+    f *os.File,
+    info *table_schema.SchemaInfo,
+    path string,
+    ad_info *ApiDocInfo,
+    request_jsonex  *JsonExValue,
+    response_jsonex *JsonExValue,
+) {
 
   // head
   _, err := f.WriteString(
@@ -448,7 +462,14 @@ func genCrudApi_delete (f *os.File, info *table_schema.SchemaInfo, path string) 
   check(err)
 }
 
-func genCrudApi_update (f *os.File, info *table_schema.SchemaInfo, path string) {
+func genCrudApi_update (
+    f *os.File,
+    info *table_schema.SchemaInfo,
+    path string,
+    ad_info *ApiDocInfo,
+    request_jsonex  *JsonExValue,
+    response_jsonex *JsonExValue,
+) {
 
   // head
   _, err := f.WriteString(
@@ -496,7 +517,14 @@ func genCrudApi_update (f *os.File, info *table_schema.SchemaInfo, path string) 
   check(err)
 }
 
-func genCrudApi_getById (f *os.File, info *table_schema.SchemaInfo, path string) {
+func genCrudApi_getById (
+    f *os.File,
+    info *table_schema.SchemaInfo,
+    path string,
+    ad_info *ApiDocInfo,
+    request_jsonex  *JsonExValue,
+    response_jsonex *JsonExValue,
+) {
 
   // head
   _, err := f.WriteString(
@@ -521,7 +549,14 @@ func genCrudApi_getById (f *os.File, info *table_schema.SchemaInfo, path string)
   check(err)
 }
 
-func genCrudApi_get (f *os.File, info *table_schema.SchemaInfo, path string) {
+func genCrudApi_get (
+    f *os.File,
+    info *table_schema.SchemaInfo,
+    path string,
+    ad_info *ApiDocInfo,
+    request_jsonex  *JsonExValue,
+    response_jsonex *JsonExValue,
+) {
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
@@ -545,7 +580,29 @@ func genCrudApi_get (f *os.File, info *table_schema.SchemaInfo, path string) {
   check(err)
 }
 
-func genCrudApi_create (f *os.File, info *table_schema.SchemaInfo, path string) {
+func genCrudApi_create (
+    f *os.File,
+    info *table_schema.SchemaInfo,
+    path string,
+    ad_info *ApiDocInfo,
+    request_jsonex  *JsonExValue,
+    response_jsonex *JsonExValue,
+) {
+  var non_model_data_jsonex *JsonExValue
+  items := response_jsonex.Value.(map[string]JsonExValue)["items"].Value.([]JsonExValue);
+  if len(items) > 0 {
+    item := items[0].Value.(map[string]JsonExValue)
+    v, has_non_model_data := item["(non_model_data)"]
+    if has_non_model_data {
+      non_model_data_jsonex = &v
+    }
+  }
+
+  if non_model_data_jsonex != nil {
+    _, err := f.WriteString("  // response has non_model_data\n")
+    check(err)
+  }
+
   // head
   _, err := f.WriteString(
       fmt.Sprintf(
@@ -664,6 +721,7 @@ func genCrudApi_create (f *os.File, info *table_schema.SchemaInfo, path string) 
 
 
   // create model
+  // TODO add postOnPost-func to user_data for non_model_data
   _, err = f.WriteString(
       fmt.Sprintf(
         "    final m = (await Model.createModel(\n        %[1]s.mh,\n        property_value_map,\n        user_data: { 'token_name': token_name }\n    )) as %[1]s;\n",
@@ -674,6 +732,7 @@ func genCrudApi_create (f *os.File, info *table_schema.SchemaInfo, path string) 
 
 
   // return view model
+  // TODO add non_model_data
   _, err = f.WriteString(
       fmt.Sprintf(
         "    final vm = %sVM({\n",

@@ -281,9 +281,18 @@ func genViewModel (
     check(err)
   }
   if len(manyname_modelname_map) > 0 {
-    _, err = f.WriteString("\n\n")
+    _, err = f.WriteString("\n")
     check(err)
   }
+
+
+  // non model data
+  _, err = f.WriteString(
+      fmt.Sprintf(
+        "  var non_model_data = <String, dynamic>{};\n\n\n",
+      ),
+  )
+  check(err)
 
 
   // constructor
@@ -392,6 +401,11 @@ func genVMConstructor(
   }
 
   _, err = f.WriteString("    setNestedVMs(nested_vms);\n")
+  check(err)
+
+
+  // non model data
+  _, err = f.WriteString(vm_constructor_non_model_data_str)
   check(err)
 
 
@@ -746,3 +760,9 @@ class {{.table_name}}ModelHandler extends WseModelHandler {
   @override
   Map<String, WseModelHandler> get key_nestedhandler => {{.key_nestedhandler}};
 }`
+
+const vm_constructor_non_model_data_str = `
+    if (json.containsKey('(non_model_data)')) {
+      non_model_data = json['(non_model_data)'] as Map<String, dynamic>;
+    }
+`
