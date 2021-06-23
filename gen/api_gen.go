@@ -722,17 +722,23 @@ func genCrudApi_create (
 
   // create model
   // TODO add postOnPost-func to user_data for non_model_data
+  post_on_create_str := ""
+  if non_model_data_jsonex != nil {
+    _, err = f.WriteString("    var non_model_data = <String, dynamic>{};\n")
+    check(err)
+    post_on_create_str = "\n          'postOnCreate': (Model m, dynamic res_json) { non_model_data = res_json['(non_model_data)'] as Map<String, dynamic>; },"
+  }
   _, err = f.WriteString(
       fmt.Sprintf(
-        "    final m = (await Model.createModel(\n        %[1]s.mh,\n        property_value_map,\n        user_data: { 'token_name': token_name }\n    )) as %[1]s;\n",
+        "    final m = (await Model.createModel(\n        %[1]s.mh,\n        property_value_map,\n        user_data: {\n          'token_name': token_name,%[2]s\n        }\n    )) as %[1]s;\n",
         info.Table_name,
+        post_on_create_str,
       ),
   )
   check(err)
 
 
   // return view model
-  // TODO add non_model_data
   _, err = f.WriteString(
       fmt.Sprintf(
         "    final vm = %sVM({\n",
@@ -756,6 +762,17 @@ func genCrudApi_create (
           field_max_len + 2,
           "'" + sch.Field + "'",
           makePropName(sch.Field),
+        ),
+    )
+    check(err)
+  }
+
+  if non_model_data_jsonex != nil {
+    _, err = f.WriteString(
+        fmt.Sprintf(
+          "      %-[1]*[2]s: non_model_data,\n",
+          field_max_len + 2,
+          "'(non_model_data)'",
         ),
     )
     check(err)
