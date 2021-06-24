@@ -566,7 +566,8 @@ var re_all_cap   = regexp.MustCompile("([a-z0-9])([A-Z])")
 func makePathName (table_name string) string {
 	path := re_first_cap.ReplaceAllString(table_name, "${1}-${2}")
 	path  = re_all_cap  .ReplaceAllString(path      , "${1}-${2}")
-	path = strings.ToLower(path)
+	path  = strings.ToLower(path)
+  path  = strings.ReplaceAll(path, "_", "-")
 
   switch {
   case path[len(path)-1] == 's',
