@@ -360,7 +360,7 @@ func genVMConstructor(
     }
     _, err = f.WriteString(
         fmt.Sprintf(
-          "    if (json.containsKey('*%[1]s')) {\n      _%[2]s = %[3]s(json['*%[1]s'], vm_name: '*%[1]s');\n      nested_vms.add(_%[2]s!);\n    }\n\n",
+          "    if (json.containsKey('*%[1]s') && json['*%[1]s'] != null) {\n      _%[2]s = %[3]s(json['*%[1]s'], vm_name: '*%[1]s');\n      nested_vms.add(_%[2]s!);\n    }\n\n",
           sch.Association_info.As_name,
           makePropName(sch.Association_info.As_name),
           sch.Association_info.Model_name + "VM",
