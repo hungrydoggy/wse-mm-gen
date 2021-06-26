@@ -46,6 +46,14 @@ func GenApi (tablename_schemainfo_map map[string]*table_schema.SchemaInfo) {
     fmt.Println(permission)
     fmt.Println(comment)
 
+    _, is_hidden := funk.FindString(
+        strings.Split(comment, "\n"),
+        func (s string) bool { return strings.HasPrefix(s, "hidden for client") },
+    )
+    if is_hidden == true {
+      continue
+    }
+
     api_doc_infos = append(
         api_doc_infos,
         ApiDocInfo{
