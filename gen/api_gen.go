@@ -876,6 +876,8 @@ func makeFuncNameFromPath (path string) string {
 func convertTypeFromDoc (doc_type string) string {
   doc_type = strings.ToUpper(strings.Trim(doc_type, `'"`))
   switch doc_type {
+  case "":
+    return "dynamic"
   case "INTEGER", "INT":
     return "int"
   case "DOUBLE":
