@@ -5,8 +5,11 @@ import (
   "fmt"
   "log"
   "os"
+  "sort"
+  "strings"
   _ "github.com/go-sql-driver/mysql"
   godotenv "github.com/joho/godotenv"
+  funk     "github.com/thoas/go-funk"
 
   gen          "./gen"
   table_schema "./table_schema"
@@ -68,6 +71,43 @@ func main() {
         target_model.Manyname_modelname_map[sch.Association_info.Many_name] = info.Table_name
       }
     }
+  }
+
+  // check table options
+  for tn, info := range tablename_schemainfo_map {
+    options := table_schema.FetchTableOptionsFromComment(db, tn)
+
+    if options.Many_to_many != nil {
+      // add many-to-many to schemainfo.Manyname_modelname_map
+      assocation_schemes := funk.Filter(
+          info.Schema,
+          func (sch *table_schema.TableScheme) bool {
+            return sch.FieldType == table_schema.ASSOCIATION || sch.FieldType == table_schema.ASSO_HIDDEN
+          },
+      ).([]*table_schema.TableScheme)
+      if len(options.Many_to_many) > 0 && options.Many_to_many[0] {
+        model_info := tablename_schemainfo_map[assocation_schemes[0].Association_info.Model_name]
+        many_name := assocation_schemes[1].Field[1:]
+        many_name = many_name[:len(many_name)-3] + "s"
+        model_info.Manyname_modelname_map[many_name] = assocation_schemes[1].Association_info.Model_name
+      }
+      if len(options.Many_to_many) > 1 && options.Many_to_many[1] {
+        model_info := tablename_schemainfo_map[assocation_schemes[1].Association_info.Model_name]
+        many_name := assocation_schemes[1].Field[1:]
+        many_name = many_name[:len(many_name)-3]
+        model_info.Manyname_modelname_map[many_name] = assocation_schemes[0].Association_info.Model_name
+      }
+    }
+  }
+
+  // sort schema
+  for _, info := range tablename_schemainfo_map {
+    sort.Slice(
+        info.Schema,
+        func (a, b int) bool {
+          return strings.Compare(info.Schema[a].Field, info.Schema[b].Field) < 0;
+        },
+    )
   }
 
   // generate Model for crud

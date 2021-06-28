@@ -4,7 +4,7 @@ import (
   "database/sql"
   "fmt"
   "log"
-  "sort"
+  "regexp"
   "strings"
 
   _ "github.com/go-sql-driver/mysql"
@@ -28,6 +28,49 @@ func FetchTableNames (db *sql.DB) []string {
   return table_names
 }
 
+func FetchTableOptionsFromComment (db *sql.DB, table_name string) *TableOptions {
+  tables, err := db.Query(
+      fmt.Sprintf("show table status like '%s'", table_name),
+  )
+  if err != nil {
+    log.Fatal(err)
+  }
+  tables.Next()
+  var __ sql.NullString
+  table_comment := ""
+  tables.Scan(
+    &__, &__, &__, &__, &__, &__, &__, &__, &__, &__,
+    &__, &__, &__, &__, &__, &__, &__,
+    &table_comment,
+    &__, &__,
+  )
+  defer tables.Close()
+
+
+  // parse table comment
+  table_options := TableOptions{
+  }
+  for _, line := range strings.Split(table_comment, "\n") {
+    if len(line) <= 0 || line[0] != '&' {
+      continue
+    }
+    switch {
+    case strings.HasPrefix(line, "&many_to_many("):
+      sm := re_table_options_many_to_many.FindStringSubmatch(line)
+      table_options.Many_to_many = []bool{}
+      for _, v := range strings.Split(sm[1], ",") {
+        if strings.Trim(v, " ") == "true" {
+          table_options.Many_to_many = append(table_options.Many_to_many, true )
+        }else {
+          table_options.Many_to_many = append(table_options.Many_to_many, false)
+        }
+      }
+    }
+  }
+
+  return &table_options
+}
+
 func FetchTableSchema (db *sql.DB, table_name string) []*TableScheme {
   rows, err := db.Query(
       fmt.Sprintf("show full columns from %s", table_name),
@@ -37,6 +80,8 @@ func FetchTableSchema (db *sql.DB, table_name string) []*TableScheme {
   }
   defer rows.Close()
 
+
+  // parse comment of rows
   schema := []*TableScheme{}
   for rows.Next() {
     var __ sql.NullString
@@ -63,12 +108,6 @@ func FetchTableSchema (db *sql.DB, table_name string) []*TableScheme {
     schema = append(schema, &ts)
   }
 
-  sort.Slice(
-      schema,
-      func (a, b int) bool {
-        return strings.Compare(schema[a].Field, schema[b].Field) < 0;
-      },
-  )
 
   return schema
 }
@@ -198,3 +237,9 @@ type SchemaInfo struct {
   Schema                 []*TableScheme
   Manyname_modelname_map map[string]string
 }
+
+type TableOptions struct {
+  Many_to_many []bool
+}
+
+var re_table_options_many_to_many = regexp.MustCompile("&many_to_many\\((.*)\\)")
