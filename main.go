@@ -88,13 +88,13 @@ func main() {
       if len(options.Many_to_many) > 0 && options.Many_to_many[0] {
         model_info := tablename_schemainfo_map[assocation_schemes[0].Association_info.Model_name]
         many_name := assocation_schemes[1].Field[1:]
-        many_name = many_name[:len(many_name)-3] + "s"
+        many_name = gen.MakePlural(many_name[:len(many_name)-3])
         model_info.Manyname_modelname_map[many_name] = assocation_schemes[1].Association_info.Model_name
       }
       if len(options.Many_to_many) > 1 && options.Many_to_many[1] {
         model_info := tablename_schemainfo_map[assocation_schemes[1].Association_info.Model_name]
         many_name := assocation_schemes[1].Field[1:]
-        many_name = many_name[:len(many_name)-3]
+        many_name = gen.MakePlural(many_name[:len(many_name)-3])
         model_info.Manyname_modelname_map[many_name] = assocation_schemes[0].Association_info.Model_name
       }
     }

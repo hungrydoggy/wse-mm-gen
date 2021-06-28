@@ -569,24 +569,28 @@ func makePathName (table_name string) string {
 	path  = strings.ToLower(path)
   path  = strings.ReplaceAll(path, "_", "-")
 
+  return MakePlural(path)
+}
+
+func MakePlural (name string) string {
   switch {
-  case path[len(path)-1] == 's',
-       path[len(path)-1] == 'x',
-       path[len(path)-1] == 'o',
-       path[len(path)-2:] == "ch",
-       path[len(path)-2:] == "sh":
-    path += "es"
-  case path[len(path)-1] == 'y':
-    path = path[:len(path)-1] + "ies"
-  case path[len(path)-1] == 'f':
-    path = path[:len(path)-1] + "ves"
-  case path[len(path)-2:] == "fe":
-    path = path[:len(path)-2] + "ves"
+  case name[len(name)-1] == 's',
+       name[len(name)-1] == 'x',
+       name[len(name)-1] == 'o',
+       name[len(name)-2:] == "ch",
+       name[len(name)-2:] == "sh":
+    name += "es"
+  case name[len(name)-1] == 'y':
+    name = name[:len(name)-1] + "ies"
+  case name[len(name)-1] == 'f':
+    name = name[:len(name)-1] + "ves"
+  case name[len(name)-2:] == "fe":
+    name = name[:len(name)-2] + "ves"
   default:
-    path += "s"
+    name += "s"
   }
 
-  return path
+  return name
 }
 
 func convertTypeFromSql (sql_type string) string {
