@@ -248,6 +248,14 @@ func genSetCustomResultProperties (
       check(err)
       elem_type := extractArrayElementTypeFromJsonEx(class_name, tablename_schemainfo_map, k, &v)
       switch elem_type {
+      case "dynamic":
+        _, err = f.WriteString(
+            fmt.Sprintf(
+              "        %s.add(v);\n",
+              makePropName(k),
+            ),
+        )
+        check(err)
       case "int", "bool", "String", "float", "double":
         _, err = f.WriteString(
             fmt.Sprintf(
@@ -420,6 +428,8 @@ func extractArrayElementTypeFromJsonEx (
   }
 
   switch arr[0].Type {
+  case "":
+    return "dynamic"
   case "object":
     obj_name := fmt.Sprintf("%s__%s", class_name, key)
     if len(arr[0].Comments) > 0 {
