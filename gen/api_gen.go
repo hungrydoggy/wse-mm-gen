@@ -232,7 +232,7 @@ func genCustomApi (
   for _, pair := range req_params {
     _, err := f.WriteString(
         fmt.Sprintf(
-          "\n    String %s,",
+          "\n    dynamic %s,",
           pair[0],
         ),
     )
