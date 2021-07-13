@@ -828,6 +828,9 @@ func makeModelNameFromPath (path string) string {
             funk.Map(
               strings.Split(p, "-"),
               func (s string) string {
+                if len(s) <= 0 {
+                  return ""
+                }
                 return strings.ToUpper(s[0:1]) + s[1:]
               },
             ).([]string),
