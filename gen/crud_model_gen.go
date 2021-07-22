@@ -18,6 +18,7 @@ func GenModelForCrud (
     table_name string,
     schema []*table_schema.TableScheme,
     manyname_modelname_map map[string]string,
+    through_names []string,
 ) {
   // add password if has #password_hash
   for _, sch := range schema {
@@ -47,14 +48,15 @@ func GenModelForCrud (
       },
   )
 
-  genModel(table_name, schema, manyname_modelname_map, "id", "int", "0")
-  genViewModel(table_name, schema, manyname_modelname_map, "id", "int", "0")
+  genModel(table_name, schema, manyname_modelname_map, through_names, "id", "int", "0")
+  genViewModel(table_name, schema, manyname_modelname_map, through_names, "id", "int", "0")
 }
 
 func genViewModel (
     table_name string,
     schema []*table_schema.TableScheme,
     manyname_modelname_map map[string]string,
+    through_names []string,
     id_key string,
     id_type string,
     em_id string,
@@ -87,6 +89,9 @@ func genViewModel (
   }
   for _, model_name := range manyname_modelname_map {
     viewmodel_check_map[model_name + "VM"] = true
+  }
+  for _, mn := range through_names {
+    viewmodel_check_map[mn + "VM"] = true
   }
 
   vm_names := []string{}
@@ -249,7 +254,7 @@ func genViewModel (
     model_name := manyname_modelname_map[mn]
     _, err = f.WriteString(
         fmt.Sprintf(
-          "  List<%[1]*[2]s>? _%[3]s;\n",
+          "  List<%-[1]*[2]s>? _%[3]s;\n",
           model_name_max_len + 2,
           model_name + "VM",
           makePropName(mn),
@@ -271,7 +276,7 @@ func genViewModel (
     model_name := manyname_modelname_map[mn]
     _, err = f.WriteString(
         fmt.Sprintf(
-          "  List<%[1]*[2]s>? get %[3]*[4]s => _%[4]s;\n",
+          "  List<%-[1]*[2]s>? get %-[3]*[4]s => _%[4]s;\n",
           model_name_max_len + 2,
           model_name + "VM",
           many_name_max_len,
@@ -281,6 +286,46 @@ func genViewModel (
     check(err)
   }
   if len(manyname_modelname_map) > 0 {
+    _, err = f.WriteString("\n")
+    check(err)
+  }
+
+
+  // through properties
+  through_name_max_len := 0
+  for _, through_name := range through_names {
+    through_name_max_len = funk.MaxInt([]int{through_name_max_len, len(through_name)}).(int)
+  }
+
+  for _, tn := range through_names {
+    _, err = f.WriteString(
+        fmt.Sprintf(
+          "  %-[1]*[2]s _through_%[3]s;\n",
+          through_name_max_len + 3,
+          tn + "VM?",
+          tn,
+        ),
+    )
+    check(err)
+  }
+  _, err = f.WriteString("\n")
+  check(err)
+
+
+  // through getter
+  for _, tn := range through_names {
+    _, err = f.WriteString(
+        fmt.Sprintf(
+          "  %-[1]*[2]s get %-[3]*[4]s => _%[4]s;\n",
+          through_name_max_len + 3,
+          tn + "VM?",
+          through_name_max_len + 8,
+          "through_" + tn,
+        ),
+    )
+    check(err)
+  }
+  if len(through_names) > 0 {
     _, err = f.WriteString("\n")
     check(err)
   }
@@ -296,7 +341,7 @@ func genViewModel (
 
 
   // constructor
-  genVMConstructor(f, table_name, vm_name, schema, manyname_modelname_map, id_key, id_type)
+  genVMConstructor(f, table_name, vm_name, schema, manyname_modelname_map, through_names, id_key, id_type)
 
   // view model tail
   _, err = f.WriteString("}")
@@ -313,6 +358,7 @@ func genVMConstructor(
     vm_name string,
     schema []*table_schema.TableScheme,
     manyname_modelname_map map[string]string,
+    through_names []string,
     id_key string,
     id_type string,
 ) {
@@ -400,6 +446,19 @@ func genVMConstructor(
     check(err)
   }
 
+
+  // through names
+  for _, tn := range through_names {
+    _, err = f.WriteString(
+        fmt.Sprintf(
+          "    if (json.containsKey('%[1]s') && json['%[1]s'] != null) {\n      _through_%[1]s = %[1]sVM(json['%[1]s'], vm_name: '%[1]s');\n      nested_vms.add(_through_%[1]s!);\n    }\n\n",
+          tn,
+        ),
+    )
+    check(err)
+  }
+
+
   _, err = f.WriteString("    setNestedVMs(nested_vms);\n")
   check(err)
 
@@ -418,6 +477,7 @@ func genModel (
     table_name string,
     schema []*table_schema.TableScheme,
     manyname_modelname_map map[string]string,
+    through_names []string,
     id_key string,
     id_type string,
     em_id string,
@@ -445,6 +505,13 @@ func genModel (
   for _, mn := range manyname_modelname_map {
     othermodelname_check_map[mn] = true
   }
+
+  // from through name
+  for _, tn := range through_names {
+    othermodelname_check_map[tn] = true
+  }
+
+  // make sorted model names
   model_names := []string{}
   for mn := range othermodelname_check_map {
     model_names = append(model_names, mn)
@@ -511,7 +578,7 @@ func genModel (
 
 
 
-  /// model handler
+  //// model handler
   // ready
   many_names := []string{}
   for mn := range manyname_modelname_map {
@@ -519,8 +586,11 @@ func genModel (
   }
   sort.Strings(many_names)
 
-  // make key_nestedhandler_str
+
+  /// make key_nestedhandler_str
   key_nestedhandler_str := "{"
+
+  // associations
   associations := funk.Filter(
       schema,
       func (sch *table_schema.TableScheme) bool {
@@ -531,14 +601,24 @@ func genModel (
     info := ass.Association_info
     key_nestedhandler_str += fmt.Sprintf("\n    '*%s': %s.mh,", info.As_name, info.Model_name)
   }
+
+  // many names
   for _, mn := range many_names {
     model_name := manyname_modelname_map[mn]
     key_nestedhandler_str += fmt.Sprintf("\n    '*%s': %s.mh,", mn, model_name)
   }
+
+  // through names
+  for _, tn := range through_names {
+    key_nestedhandler_str += fmt.Sprintf("\n    '%s': %s.mh,", tn, tn)
+  }
+
   if key_nestedhandler_str != "{" {
     key_nestedhandler_str += "\n  "
   }
   key_nestedhandler_str += "}"
+
+
 
   // write code
   _, err = f.WriteString(

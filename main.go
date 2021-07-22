@@ -57,6 +57,7 @@ func main() {
       tn,
       schema,
       map[string]string{},
+      []string{},
     }
   }
 
@@ -90,12 +91,20 @@ func main() {
         many_name := assocation_schemes[1].Field[1:]
         many_name = gen.MakePlural(many_name[:len(many_name)-3])
         model_info.Manyname_modelname_map[many_name] = assocation_schemes[1].Association_info.Model_name
+
+        // add through name
+        target_info := tablename_schemainfo_map[assocation_schemes[1].Association_info.Model_name]
+        target_info.Through_names = append(target_info.Through_names, info.Table_name)
       }
       if len(options.Many_to_many) > 1 && options.Many_to_many[1] {
         model_info := tablename_schemainfo_map[assocation_schemes[1].Association_info.Model_name]
         many_name := assocation_schemes[1].Field[1:]
         many_name = gen.MakePlural(many_name[:len(many_name)-3])
         model_info.Manyname_modelname_map[many_name] = assocation_schemes[0].Association_info.Model_name
+
+        // add through name
+        target_info := tablename_schemainfo_map[assocation_schemes[0].Association_info.Model_name]
+        target_info.Through_names = append(target_info.Through_names, info.Table_name)
       }
     }
   }
@@ -112,7 +121,8 @@ func main() {
 
   // generate Model for crud
   for _, info := range tablename_schemainfo_map {
-    gen.GenModelForCrud(info.Table_name, info.Schema, info.Manyname_modelname_map)
+    sort.Strings(info.Through_names)
+    gen.GenModelForCrud(info.Table_name, info.Schema, info.Manyname_modelname_map, info.Through_names)
   }
 
   // generate api

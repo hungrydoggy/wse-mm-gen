@@ -236,6 +236,7 @@ type SchemaInfo struct {
   Table_name             string
   Schema                 []*TableScheme
   Manyname_modelname_map map[string]string
+  Through_names          []string
 }
 
 type TableOptions struct {
