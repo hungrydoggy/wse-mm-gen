@@ -681,7 +681,8 @@ func convertTypeFromSql (sql_type string) string {
     return "bool"
   case sql_type == "double":
     return "double"
-  case strings.HasPrefix(sql_type, "varchar("),
+  case strings.HasPrefix(sql_type, "char("   ),
+       strings.HasPrefix(sql_type, "varchar("),
        strings.HasPrefix(sql_type, "text"    ):
     return "String"
   case sql_type == "point":

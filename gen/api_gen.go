@@ -885,7 +885,7 @@ func convertTypeFromDoc (doc_type string) string {
     return "int"
   case "DOUBLE":
     return "double"
-  case "STRING", "STR", "PASSWORD", "PWD", "TEXT":
+  case "STRING", "STR", "PASSWORD", "PWD", "TEXT", "UUID":
     return "String"
   case "BOOLEAN", "BOOL":
     return "bool"
