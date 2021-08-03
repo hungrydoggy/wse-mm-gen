@@ -912,6 +912,8 @@ func getDefaultValueForTypeFromDoc (doc_type string) string {
   switch convertTypeFromDoc(doc_type) {
   case "int":
     return "0"
+  case "double":
+    return "0.0"
   case "String":
     return "''"
   case "bool":
