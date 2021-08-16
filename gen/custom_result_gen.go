@@ -49,7 +49,7 @@ func GenCustomResult (
   // import-model/viewmodel parts
   subresultname_jsonex_map := map[string]JsonExValue{}
   import_model_customresult_list := []string{}
-  genImportModelAndCustomResult(import_model_customresult_list, class_name, tablename_schemainfo_map, "", *response_jsonex, &subresultname_jsonex_map)
+  genImportModelAndCustomResult(&import_model_customresult_list, class_name, tablename_schemainfo_map, "", *response_jsonex, &subresultname_jsonex_map)
   sort.Strings(import_model_customresult_list)
   _, err = f.WriteString(strings.Join(import_model_customresult_list, "\n") + "\n\n")
   check(err)
@@ -456,7 +456,7 @@ func extractArrayElementTypeFromJsonEx (
 }
 
 func genImportModelAndCustomResult(
-    result []string,
+    result *[]string,
     class_name string,
     tablename_schemainfo_map map[string]*table_schema.SchemaInfo,
     key string,
@@ -471,8 +471,8 @@ func genImportModelAndCustomResult(
         obj_name := subs[1]
         if _, ok := tablename_schemainfo_map[obj_name]; ok {
           // model
-          result = append(
-              result,
+          *result = append(
+              *result,
               fmt.Sprintf(
                 "import '../models/%[1]s.dart';\nimport '../view_models/%[1]sVM.dart';",
                 obj_name,
