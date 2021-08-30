@@ -893,7 +893,7 @@ func convertTypeFromDoc (doc_type string) string {
     return "DateTime"
   case "JSON_ARRAY", "ARRAY":
     return "List<dynamic>"
-  case "JSON_OBJECT", "JSON_OBJ", "OBJECT":
+  case "JSON", "JSON_OBJECT", "JSON_OBJ", "OBJECT":
     return "dynamic"
   default:
     switch {
