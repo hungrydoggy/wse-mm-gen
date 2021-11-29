@@ -158,7 +158,7 @@ func genCustomResultInitFunc (
     case "object":
       _, err := f.WriteString(
           fmt.Sprintf(
-            "    await %s!.init();\n",
+            "    await %s!.init(need_fetch: false);\n",
             makePropName(k),
           ),
       )
@@ -170,7 +170,7 @@ func genCustomResultInitFunc (
       default:
         _, err := f.WriteString(
             fmt.Sprintf(
-              "    for (final v in %s)\n      await v.init();\n",
+              "    for (final v in %s)\n      await v.init(need_fetch: false);\n",
               makePropName(k),
             ),
         )
