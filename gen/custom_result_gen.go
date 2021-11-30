@@ -152,14 +152,50 @@ func genCustomResultInitFunc (
   }
   sort.Strings(res_keys)
 
+
+  // func for check VM class name
+  __isVM := func (k string) bool {
+    v := res_json[k]
+
+    switch v.Type {
+    case "object":
+      subs := re_custom_result_model.FindStringSubmatch(strings.Trim(v.Comments[0], " "))
+      if len(subs) > 0 {
+        model_name := subs[1]
+        _, ok := tablename_schemainfo_map[model_name]
+        return ok
+      }
+    case "array":
+      elem_type := extractArrayElementTypeFromJsonEx(class_name, tablename_schemainfo_map, k, &v)
+      if elem_type[len(elem_type)-2:] != "VM" {
+        return false
+      }
+
+      _, has_key := tablename_schemainfo_map[elem_type[:len(elem_type)-2]]
+      return has_key
+    }
+
+    return false
+  }
+
+
+  // gen
   for _, k := range res_keys {
+    init_params := ""
+    fmt.Println(k, __isVM(k))
+    if __isVM(k) == true {
+      init_params = "need_fetch: false"
+    }
+    fmt.Println(init_params)
+
     v := res_json[k]
     switch v.Type {
     case "object":
       _, err := f.WriteString(
           fmt.Sprintf(
-            "    await %s!.init(need_fetch: false);\n",
+            "    await %s!.init(%s);\n",
             makePropName(k),
+            init_params,
           ),
       )
       check(err)
@@ -170,8 +206,9 @@ func genCustomResultInitFunc (
       default:
         _, err := f.WriteString(
             fmt.Sprintf(
-              "    for (final v in %s)\n      await v.init(need_fetch: false);\n",
+              "    for (final v in %s)\n      await v.init(%s);\n",
               makePropName(k),
+              init_params,
             ),
         )
         check(err)
