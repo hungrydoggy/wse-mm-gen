@@ -182,11 +182,9 @@ func genCustomResultInitFunc (
   // gen
   for _, k := range res_keys {
     init_params := ""
-    fmt.Println(k, __isVM(k))
     if __isVM(k) == true {
       init_params = "need_fetch: false"
     }
-    fmt.Println(init_params)
 
     v := res_json[k]
     switch v.Type {
