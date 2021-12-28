@@ -238,7 +238,8 @@ func genSetCustomResultProperties (
     v := res_json[k]
     _, err := f.WriteString(
         fmt.Sprintf(
-          "    if (json.containsKey('%s')) {\n",
+          "    if (json.containsKey('%s') && json['%s'] != null) {\n",
+          k,
           k,
         ),
     )
