@@ -41,6 +41,16 @@ func GenApi (tablename_schemainfo_map map[string]*table_schema.SchemaInfo) {
     comment    := sm[4]
 
     permission = strings.Trim(permission, "_")
+    comment = strings.Join(
+        funk.Map(
+          funk.Filter(
+            strings.Split(comment, "\n"),
+            func (s string) bool { return len(s) >= 2 },
+          ),
+          func (s string) string { return s[2:] },
+        ).([]string),
+        "\n",
+    )
 
     fmt.Println("##", path, method)
     fmt.Println(permission)
@@ -48,7 +58,7 @@ func GenApi (tablename_schemainfo_map map[string]*table_schema.SchemaInfo) {
 
     _, is_hidden := funk.FindString(
         strings.Split(comment, "\n"),
-        func (s string) bool { return strings.HasPrefix(s, "hidden for client") },
+        func (s string) bool { return strings.Index(s, "#no_gen") >= 0 },
     )
     if is_hidden == true {
       continue
@@ -931,7 +941,7 @@ func getDefaultValueForTypeFromDoc (doc_type string) string {
 
 
 
-var re_api_head       = regexp.MustCompile("\n\\#\\# (.*)&nbsp;&nbsp;&nbsp;&nbsp;`(.*)`\n> permission: (.*)\n>.*\n> (.*)\n")
+var re_api_head       = regexp.MustCompile("\n\\#\\# (.*)&nbsp;&nbsp;&nbsp;&nbsp;`(.*)`\n> permission: (.*)\n>.*\n((?:> .*\n)*)")
 var re_api_request    = regexp.MustCompile(`\n\#\#\# Request` )
 var re_api_response   = regexp.MustCompile(`\n\#\#\# Response`)
 var re_small_title    = regexp.MustCompile(`\n\#\#\#\# `)
