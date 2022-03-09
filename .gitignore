@@ -7,3 +7,4 @@ out/
 .env
 
 apis.md
+cp_to_client.sh
