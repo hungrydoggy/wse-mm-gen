@@ -691,6 +691,10 @@ func convertTypeFromSql (sql_type string) string {
     return "DateTime"
   case strings.HasPrefix(sql_type, "enum("):
     return "String"
+  case strings.HasPrefix(sql_type, "date"):
+    return "String"
+  case strings.HasPrefix(sql_type, "time"):
+    return "String"
   default:
     panic("unknown type " + sql_type)
   }
