@@ -363,9 +363,16 @@ func genCustomApi (
       continue
     }
 
-    _, err = f.WriteString(
-      fmt.Sprintf("    if (%[1]s != null)\n      params['%[2]s'] = %[1]s;\n", makePropName(k), k),
-    )
+    switch convertTypeFromDoc(v.Value.(string)) {
+    case "DateTime":
+      _, err = f.WriteString(
+        fmt.Sprintf("    if (%[1]s != null)\n      params['%[2]s'] = %[1]s.toUtc().toString();\n", makePropName(k), k),
+      )
+    default:
+      _, err = f.WriteString(
+        fmt.Sprintf("    if (%[1]s != null)\n      params['%[2]s'] = %[1]s;\n", makePropName(k), k),
+      )
+    }
     check(err)
   }
 
