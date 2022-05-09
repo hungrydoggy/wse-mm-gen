@@ -68,8 +68,10 @@ func main() {
         continue
       }
       if sch.Association_info.Many_name != "" {
-        target_model := tablename_schemainfo_map[sch.Association_info.Model_name]
-        target_model.Manyname_modelname_map[sch.Association_info.Many_name] = info.Table_name
+        for _, mn :=  range strings.Split(sch.Association_info.Many_name, ",") {
+          target_model := tablename_schemainfo_map[sch.Association_info.Model_name]
+          target_model.Manyname_modelname_map[strings.Trim(mn, " ")] = info.Table_name
+        }
       }
     }
   }
