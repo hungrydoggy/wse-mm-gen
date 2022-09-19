@@ -205,7 +205,7 @@ func genCustomApi(
 	/// head
 	_, err := f.WriteString(
 		fmt.Sprintf(
-			"  static Future<%s> %s_%s (",
+			"  static Future<%s> %s_%s (\n    dynamic ctx,",
 			result_class,
 			makeFuncNameFromPath(ad_info.Method),
 			makeFuncNameFromPath(ad_info.Path),
@@ -407,7 +407,7 @@ func genCustomApi(
 	check(err)
 }
 
-func genCrudApi(
+func genCrudApi (
 	f *os.File,
 	info *table_schema.SchemaInfo,
 	crud_type string,
@@ -434,7 +434,7 @@ func genCrudApi(
 	}
 }
 
-func genCrudApi_delete(
+func genCrudApi_delete (
 	f *os.File,
 	info *table_schema.SchemaInfo,
 	path string,
@@ -446,7 +446,7 @@ func genCrudApi_delete(
 	// head
 	_, err := f.WriteString(
 		fmt.Sprintf(
-			"  static Future<void> delete_%s (\n    int id,\n    {\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name\n    }\n  ) async {\n",
+			"  static Future<void> delete_%s (\n    dynamic ctx,\n    int id,\n    {\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name\n    }\n  ) async {\n",
 			makeFuncNameFromPath(path),
 		),
 	)
@@ -478,7 +478,7 @@ func genCrudApi_update(
 	// head
 	_, err := f.WriteString(
 		fmt.Sprintf(
-			"  static Future<void> put_%s (\n    int id,\n    {\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n\n      required dynamic params,\n    }\n  ) async {",
+			"  static Future<void> put_%s (\n    dynamic ctx,\n    int id,\n    {\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n\n      required dynamic params,\n    }\n  ) async {",
 			makeFuncNameFromPath(path),
 		),
 	)
@@ -531,7 +531,7 @@ func genCrudApi_getById(
 	// head
 	_, err := f.WriteString(
 		fmt.Sprintf(
-			"  static Future<%[1]sVM?> get_%[2]s (\n    int id,\n    {\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n\n      dynamic options,\n      bool?   need_count,\n    }\n  ) async {",
+			"  static Future<%[1]sVM?> get_%[2]s (\n    dynamic ctx,\n    int id,\n    {\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n\n      dynamic options,\n      bool?   need_count,\n    }\n  ) async {",
 			info.Table_name,
 			makeFuncNameFromPath(path),
 		),
@@ -560,7 +560,7 @@ func genCrudApi_get(
 	// head
 	_, err := f.WriteString(
 		fmt.Sprintf(
-			"  static Future<List<%[1]sVM>> get_%[2]s ({\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n\n      required dynamic options,\n      dynamic  order_query,\n  }) async {",
+			"  static Future<List<%[1]sVM>> get_%[2]s (dynamic ctx,{\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n\n      required dynamic options,\n      dynamic  order_query,\n  }) async {",
 			info.Table_name,
 			makeFuncNameFromPath(path),
 		),
@@ -578,7 +578,7 @@ func genCrudApi_get(
 	check(err)
 }
 
-func genCrudApi_create(
+func genCrudApi_create (
 	f *os.File,
 	info *table_schema.SchemaInfo,
 	path string,
@@ -604,7 +604,7 @@ func genCrudApi_create(
 	// head
 	_, err := f.WriteString(
 		fmt.Sprintf(
-			"  static Future<%[1]sVM> post_%[2]s ({\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n%[3]s\n  }) async {\n",
+			"  static Future<%[1]sVM> post_%[2]s (dynamic ctx, {\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n%[3]s\n  }) async {\n",
 			info.Table_name,
 			makeFuncNameFromPath(path),
 			strings.Join(
@@ -925,8 +925,64 @@ var re_path_param = regexp.MustCompile("&lt;(.*)&gt;|:(.*)")
 var re_md_code = regexp.MustCompile("```javascript\n((?:.|\\s)*)```\n")
 
 var api_head_str = `
-class Api {
+// for listeners
+typedef Future<void> ApiOnPreCall ();
+typedef bool ApiOnCatchError (Exception e);
+typedef Future<void> ApiOnError (dynamic ctx, Exception e);
+class _ErrorListener {
+  ApiOnCatchError on_catch_err;
+  ApiOnError on_err;
 
+  _ErrorListener(this.on_catch_err, this.on_err);
+}
+
+
+class Api {
+  //// pre call listener
+  static final _pre_call_listeners = <ApiOnPreCall>[];
+  static void addPreCallListener (ApiOnPreCall f) {
+    _pre_call_listeners.add(f);
+  }
+  static void removePreCallListener (ApiOnPreCall f) {
+    _pre_call_listeners.remove(f);
+  }
+  static void clearPreCallListener () {
+    _pre_call_listeners.clear();
+  }
+  static Future<void> _callPreCallListeners () async {
+    for (final f in _pre_call_listeners)
+      await f();
+  }
+
+
+  //// error listener
+  static final _error_listeners = <_ErrorListener>[];
+  static _ErrorListener addErrorListener (ApiOnCatchError on_catch_err, ApiOnError, on_err) {
+    final l = _ErrorListener(on_catch_err, on_err);
+    _error_listeners.add(l);
+    return l;
+  }
+  static void removeErrorListener (_ErrorListener l) {
+    _error_listeners.remove(l);
+  }
+  static void clearErrorListener () {
+    _error_listeners.clear();
+  }
+  static Future<int> _callErrorListeners (dynamic ctx, Exception e) async {
+    var called_cnt = 0;
+    for (final l in _error_listeners) {
+      if (l.on_catch_err(e) == false)
+        continue;
+      
+      await l.on_err(ctx, e);
+      called_cnt += 1;
+    }
+    
+    return called_cnt;
+  }
+
+
+  //// apis
 `
 
 var api_crud_get_codes_fmt = `
