@@ -307,6 +307,9 @@ func genCustomApi (
 	check(err)
 
 	/// gen codes
+	_, err = f.WriteString("    await _callPreCallListeners();\n\n")
+	check(err)
+
 	// params - required
 	_, err = f.WriteString("    final params = <String, dynamic>{")
 	check(err)
@@ -453,6 +456,9 @@ func genCrudApi_delete (
 	check(err)
 
 	// write codes
+	_, err = f.WriteString("    await _callPreCallListeners();\n\n")
+	check(err)
+
 	_, err = f.WriteString(
 		fmt.Sprintf(
 			"    await Model.deleteModel(%s.mh, id, user_data: { 'token_name': token_name });\n",
@@ -485,6 +491,9 @@ func genCrudApi_update (
 	check(err)
 
 	// write codes
+	_, err = f.WriteString("\n    await _callPreCallListeners();\n\n")
+	check(err)
+
 	_, err = f.WriteString("    final property_value_map = <Property, dynamic>{};\n")
 	check(err)
 
@@ -539,6 +548,9 @@ func genCrudApi_getById (
 	check(err)
 
 	// write codes
+	_, err = f.WriteString("\n    await _callPreCallListeners();\n")
+	check(err)
+
 	_, err = f.WriteString(
 		fmt.Sprintf(api_crud_get_by_id_codes_fmt, info.Table_name),
 	)
@@ -568,6 +580,9 @@ func genCrudApi_get (
 	check(err)
 
 	// write codes
+	_, err = f.WriteString("\n    await _callPreCallListeners();\n")
+	check(err)
+
 	_, err = f.WriteString(
 		fmt.Sprintf(api_crud_get_codes_fmt, info.Table_name),
 	)
@@ -663,6 +678,9 @@ func genCrudApi_create (
 	check(err)
 
 	/// codes
+	_, err = f.WriteString("    await _callPreCallListeners();\n\n")
+	check(err)
+
 	// write property_value_map - required
 	_, err = f.WriteString("    var property_value_map = <Property, dynamic>{\n")
 	check(err)
