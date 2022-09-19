@@ -13,7 +13,7 @@ import (
 	table_schema "../table_schema"
 )
 
-func GenApi(tablename_schemainfo_map map[string]*table_schema.SchemaInfo) {
+func GenApi (tablename_schemainfo_map map[string]*table_schema.SchemaInfo) {
 	// create api source code
 	f, err := os.Create("./out/api.dart")
 	check(err)
@@ -189,12 +189,12 @@ func GenApi(tablename_schemainfo_map map[string]*table_schema.SchemaInfo) {
 	f.Sync()
 }
 
-func genCustomApi(
-	f *os.File,
-	tablename_schemainfo_map map[string]*table_schema.SchemaInfo,
-	ad_info *ApiDocInfo,
-	request_jsonex *JsonExValue,
-	response_jsonex *JsonExValue,
+func genCustomApi (
+    f *os.File,
+    tablename_schemainfo_map map[string]*table_schema.SchemaInfo,
+    ad_info *ApiDocInfo,
+    request_jsonex *JsonExValue,
+    response_jsonex *JsonExValue,
 ) {
 	result_class := fmt.Sprintf(
 		"%s_%s",
@@ -408,13 +408,13 @@ func genCustomApi(
 }
 
 func genCrudApi (
-	f *os.File,
-	info *table_schema.SchemaInfo,
-	crud_type string,
-	path string,
-	ad_info *ApiDocInfo,
-	request_jsonex *JsonExValue,
-	response_jsonex *JsonExValue,
+    f *os.File,
+    info *table_schema.SchemaInfo,
+    crud_type string,
+    path string,
+    ad_info *ApiDocInfo,
+    request_jsonex *JsonExValue,
+    response_jsonex *JsonExValue,
 ) {
 	switch crud_type {
 	case "create":
@@ -435,12 +435,12 @@ func genCrudApi (
 }
 
 func genCrudApi_delete (
-	f *os.File,
-	info *table_schema.SchemaInfo,
-	path string,
-	ad_info *ApiDocInfo,
-	request_jsonex *JsonExValue,
-	response_jsonex *JsonExValue,
+    f *os.File,
+    info *table_schema.SchemaInfo,
+    path string,
+    ad_info *ApiDocInfo,
+    request_jsonex *JsonExValue,
+    response_jsonex *JsonExValue,
 ) {
 
 	// head
@@ -466,13 +466,13 @@ func genCrudApi_delete (
 	check(err)
 }
 
-func genCrudApi_update(
-	f *os.File,
-	info *table_schema.SchemaInfo,
-	path string,
-	ad_info *ApiDocInfo,
-	request_jsonex *JsonExValue,
-	response_jsonex *JsonExValue,
+func genCrudApi_update (
+    f *os.File,
+    info *table_schema.SchemaInfo,
+    path string,
+    ad_info *ApiDocInfo,
+    request_jsonex *JsonExValue,
+    response_jsonex *JsonExValue,
 ) {
 
 	// head
@@ -519,13 +519,13 @@ func genCrudApi_update(
 	check(err)
 }
 
-func genCrudApi_getById(
-	f *os.File,
-	info *table_schema.SchemaInfo,
-	path string,
-	ad_info *ApiDocInfo,
-	request_jsonex *JsonExValue,
-	response_jsonex *JsonExValue,
+func genCrudApi_getById (
+    f *os.File,
+    info *table_schema.SchemaInfo,
+    path string,
+    ad_info *ApiDocInfo,
+    request_jsonex *JsonExValue,
+    response_jsonex *JsonExValue,
 ) {
 
 	// head
@@ -549,13 +549,13 @@ func genCrudApi_getById(
 	check(err)
 }
 
-func genCrudApi_get(
-	f *os.File,
-	info *table_schema.SchemaInfo,
-	path string,
-	ad_info *ApiDocInfo,
-	request_jsonex *JsonExValue,
-	response_jsonex *JsonExValue,
+func genCrudApi_get (
+    f *os.File,
+    info *table_schema.SchemaInfo,
+    path string,
+    ad_info *ApiDocInfo,
+    request_jsonex *JsonExValue,
+    response_jsonex *JsonExValue,
 ) {
 	// head
 	_, err := f.WriteString(
@@ -579,12 +579,12 @@ func genCrudApi_get(
 }
 
 func genCrudApi_create (
-	f *os.File,
-	info *table_schema.SchemaInfo,
-	path string,
-	ad_info *ApiDocInfo,
-	request_jsonex *JsonExValue,
-	response_jsonex *JsonExValue,
+    f *os.File,
+    info *table_schema.SchemaInfo,
+    path string,
+    ad_info *ApiDocInfo,
+    request_jsonex *JsonExValue,
+    response_jsonex *JsonExValue,
 ) {
 	var non_model_data_jsonex *JsonExValue
 	items := response_jsonex.Value.(map[string]JsonExValue)["items"].Value.([]JsonExValue)
@@ -778,7 +778,7 @@ func genCrudApi_create (
 }
 
 // returns [req_param, uppered_req_param]
-func convertReqParamPair(str string) []string {
+func convertReqParamPair (str string) []string {
 	subs := re_path_param.FindStringSubmatch(str)
 	if len(subs) > 0 {
 		req_param := subs[1]
@@ -796,7 +796,7 @@ func convertReqParamPair(str string) []string {
 	return nil
 }
 
-func makeModelNameFromPath(path string) string {
+func makeModelNameFromPath (path string) string {
 	return strings.Join(
 		funk.Map(
 			strings.Split(path, "/"),
@@ -829,7 +829,7 @@ func makeModelNameFromPath(path string) string {
 	)
 }
 
-func makeFuncNameFromPath(path string) string {
+func makeFuncNameFromPath (path string) string {
 	return strings.Join(
 		funk.Map(
 			strings.Split(path, "/"),
@@ -862,7 +862,7 @@ func makeFuncNameFromPath(path string) string {
 	)
 }
 
-func convertTypeFromDoc(doc_type string) string {
+func convertTypeFromDoc (doc_type string) string {
 	doc_type = strings.ToUpper(strings.Trim(doc_type, `'"`))
 	switch doc_type {
 	case "":
@@ -894,7 +894,7 @@ func convertTypeFromDoc(doc_type string) string {
 	}
 }
 
-func getDefaultValueForTypeFromDoc(doc_type string) string {
+func getDefaultValueForTypeFromDoc (doc_type string) string {
 	switch convertTypeFromDoc(doc_type) {
 	case "int":
 		return "0"
