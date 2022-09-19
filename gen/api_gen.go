@@ -237,7 +237,7 @@ func genCustomApi (
 
 	// params
 	_, err = f.WriteString(
-		"\n    {\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n",
+		"\n    {\n      bool need_pre_call_listener = true,\n\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n",
 	)
 	check(err)
 
@@ -309,7 +309,7 @@ func genCustomApi (
 	/// gen codes
 	_, err = f.WriteString("    try {\n")
 	check(err)
-	_, err = f.WriteString("      await _callPreCallListeners();\n\n")
+	_, err = f.WriteString("      if (need_pre_call_listener == true)\n        await _callPreCallListeners();\n\n")
 	check(err)
 
 	// params - required
@@ -453,7 +453,7 @@ func genCrudApi_delete (
 	// head
 	_, err := f.WriteString(
 		fmt.Sprintf(
-			"  static Future<void> delete_%s (\n    dynamic ctx,\n    int id,\n    {\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name\n    }\n  ) async {\n",
+			"  static Future<void> delete_%s (\n    dynamic ctx,\n    int id,\n    {\n      bool need_pre_call_listener = true,\n\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name\n    }\n  ) async {\n",
 			makeFuncNameFromPath(path),
 		),
 	)
@@ -462,7 +462,7 @@ func genCrudApi_delete (
 	// write codes
 	_, err = f.WriteString("    try {\n")
 	check(err)
-	_, err = f.WriteString("      await _callPreCallListeners();\n\n")
+	_, err = f.WriteString("      if (need_pre_call_listener == true)\n        await _callPreCallListeners();\n\n")
 	check(err)
 
 	_, err = f.WriteString(
@@ -492,7 +492,7 @@ func genCrudApi_update (
 	// head
 	_, err := f.WriteString(
 		fmt.Sprintf(
-			"  static Future<void> put_%s (\n    dynamic ctx,\n    int id,\n    {\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n\n      required dynamic params,\n    }\n  ) async {",
+			"  static Future<void> put_%s (\n    dynamic ctx,\n    int id,\n    {\n      bool need_pre_call_listener = true,\n\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n\n      required dynamic params,\n    }\n  ) async {",
 			makeFuncNameFromPath(path),
 		),
 	)
@@ -501,7 +501,7 @@ func genCrudApi_update (
 	// write codes
 	_, err = f.WriteString("\n    try{\n")
 	check(err)
-	_, err = f.WriteString("      await _callPreCallListeners();\n\n")
+	_, err = f.WriteString("      if (need_pre_call_listener == true)\n        await _callPreCallListeners();\n\n")
 	check(err)
 
 	_, err = f.WriteString("      final property_value_map = <Property, dynamic>{};\n")
@@ -552,7 +552,7 @@ func genCrudApi_getById (
 	// head
 	_, err := f.WriteString(
 		fmt.Sprintf(
-			"  static Future<%[1]sVM?> get_%[2]s (\n    dynamic ctx,\n    int id,\n    {\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n\n      dynamic options,\n      bool?   need_count,\n    }\n  ) async {",
+			"  static Future<%[1]sVM?> get_%[2]s (\n    dynamic ctx,\n    int id,\n    {\n      bool need_pre_call_listener = true,\n\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n\n      dynamic options,\n      bool?   need_count,\n    }\n  ) async {",
 			info.Table_name,
 			makeFuncNameFromPath(path),
 		),
@@ -562,7 +562,7 @@ func genCrudApi_getById (
 	// write codes
 	_, err = f.WriteString("\n    try {\n")
 	check(err)
-	_, err = f.WriteString("      await _callPreCallListeners();\n")
+	_, err = f.WriteString("      if (need_pre_call_listener == true)\n        await _callPreCallListeners();\n")
 	check(err)
 
 	_, err = f.WriteString(
@@ -588,7 +588,7 @@ func genCrudApi_get (
 	// head
 	_, err := f.WriteString(
 		fmt.Sprintf(
-			"  static Future<List<%[1]sVM>> get_%[2]s (dynamic ctx, {\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n\n      required dynamic options,\n      dynamic  order_query,\n  }) async {",
+			"  static Future<List<%[1]sVM>> get_%[2]s (dynamic ctx, {\n      bool need_pre_call_listener = true,\n\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n\n      required dynamic options,\n      dynamic  order_query,\n  }) async {",
 			info.Table_name,
 			makeFuncNameFromPath(path),
 		),
@@ -598,7 +598,7 @@ func genCrudApi_get (
 	// write codes
 	_, err = f.WriteString("\n    try {\n")
 	check(err)
-	_, err = f.WriteString("      await _callPreCallListeners();\n")
+	_, err = f.WriteString("      if (need_pre_call_listener == true)\n        await _callPreCallListeners();\n")
 	check(err)
 
 	_, err = f.WriteString(
@@ -639,7 +639,7 @@ func genCrudApi_create (
 	// head
 	_, err := f.WriteString(
 		fmt.Sprintf(
-			"  static Future<%[1]sVM> post_%[2]s (dynamic ctx, {\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n%[3]s\n  }) async {\n",
+			"  static Future<%[1]sVM> post_%[2]s (dynamic ctx, {\n      bool need_pre_call_listener = true,\n\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n%[3]s\n  }) async {\n",
 			info.Table_name,
 			makeFuncNameFromPath(path),
 			strings.Join(
@@ -700,7 +700,7 @@ func genCrudApi_create (
 	/// codes
 	_, err = f.WriteString("    try {\n")
 	check(err)
-	_, err = f.WriteString("      await _callPreCallListeners();\n\n")
+	_, err = f.WriteString("      if (need_pre_call_listener == true)\n        await _callPreCallListeners();\n\n")
 	check(err)
 
 	// write property_value_map - required
