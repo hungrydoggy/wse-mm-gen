@@ -307,11 +307,13 @@ func genCustomApi (
 	check(err)
 
 	/// gen codes
-	_, err = f.WriteString("    await _callPreCallListeners();\n\n")
+	_, err = f.WriteString("    try {\n")
+	check(err)
+	_, err = f.WriteString("      await _callPreCallListeners();\n\n")
 	check(err)
 
 	// params - required
-	_, err = f.WriteString("    final params = <String, dynamic>{")
+	_, err = f.WriteString("      final params = <String, dynamic>{")
 	check(err)
 	for _, k := range request_keys {
 		v := request_map[k]
@@ -327,11 +329,11 @@ func genCustomApi (
 		}
 
 		_, err = f.WriteString(
-			fmt.Sprintf("\n      '%s': %s,", k, makePropName(k)),
+			fmt.Sprintf("\n        '%s': %s,", k, makePropName(k)),
 		)
 		check(err)
 	}
-	_, err = f.WriteString("\n    };\n")
+	_, err = f.WriteString("\n      };\n")
 	check(err)
 
 	// params - optional
@@ -351,11 +353,11 @@ func genCustomApi (
 		switch convertTypeFromDoc(v.Value.(string)) {
 		case "DateTime":
 			_, err = f.WriteString(
-				fmt.Sprintf("    if (%[1]s != null)\n      params['%[2]s'] = %[1]s.toUtc().toString();\n", makePropName(k), k),
+				fmt.Sprintf("      if (%[1]s != null)\n        params['%[2]s'] = %[1]s.toUtc().toString();\n", makePropName(k), k),
 			)
 		default:
 			_, err = f.WriteString(
-				fmt.Sprintf("    if (%[1]s != null)\n      params['%[2]s'] = %[1]s;\n", makePropName(k), k),
+				fmt.Sprintf("      if (%[1]s != null)\n        params['%[2]s'] = %[1]s;\n", makePropName(k), k),
 			)
 		}
 		check(err)
@@ -399,13 +401,15 @@ func genCustomApi (
 
 	_, err = f.WriteString(
 		fmt.Sprintf(
-			"    final res_json = json.decode(res.body);\n    final result = %s(res_json);\n    await result.init();\n    return result;\n",
+			"      final res_json = json.decode(res.body);\n      final result = %s(res_json);\n      await result.init();\n      return result;\n",
 			result_class,
 		),
 	)
 	check(err)
 
 	// tail
+	_, err = f.WriteString("\n    }catch (e) {\n      await _callErrorListeners(ctx, e);\n      rethrow;\n    }\n")
+	check(err)
 	_, err = f.WriteString("  }\n\n")
 	check(err)
 }
@@ -456,18 +460,22 @@ func genCrudApi_delete (
 	check(err)
 
 	// write codes
-	_, err = f.WriteString("    await _callPreCallListeners();\n\n")
+	_, err = f.WriteString("    try {\n")
+	check(err)
+	_, err = f.WriteString("      await _callPreCallListeners();\n\n")
 	check(err)
 
 	_, err = f.WriteString(
 		fmt.Sprintf(
-			"    await Model.deleteModel(%s.mh, id, user_data: { 'token_name': token_name });\n",
+			"      await Model.deleteModel(%s.mh, id, user_data: { 'token_name': token_name });\n",
 			info.Table_name,
 		),
 	)
 	check(err)
 
 	// tail
+	_, err = f.WriteString("\n    }catch (e) {\n      if(await _callErrorListeners(ctx, e) > 0)\n        return;\n\n      rethrow;\n    }\n")
+	check(err)
 	_, err = f.WriteString("  }\n\n")
 	check(err)
 }
@@ -491,10 +499,12 @@ func genCrudApi_update (
 	check(err)
 
 	// write codes
-	_, err = f.WriteString("\n    await _callPreCallListeners();\n\n")
+	_, err = f.WriteString("\n    try{\n")
+	check(err)
+	_, err = f.WriteString("      await _callPreCallListeners();\n\n")
 	check(err)
 
-	_, err = f.WriteString("    final property_value_map = <Property, dynamic>{};\n")
+	_, err = f.WriteString("      final property_value_map = <Property, dynamic>{};\n")
 	check(err)
 
 	for _, sch := range info.Schema {
@@ -507,7 +517,7 @@ func genCrudApi_update (
 		}
 		_, err = f.WriteString(
 			fmt.Sprintf(
-				"    if (params.containsKey('%[2]s'))\n      property_value_map[%[1]s.em.%[3]s] = params['%[2]s'];\n",
+				"      if (params.containsKey('%[2]s'))\n        property_value_map[%[1]s.em.%[3]s] = params['%[2]s'];\n",
 				info.Table_name,
 				field,
 				makePropName(field),
@@ -517,13 +527,15 @@ func genCrudApi_update (
 	}
 	_, err = f.WriteString(
 		fmt.Sprintf(
-			"\n    await %s(id).update(property_value_map, { 'token_name': token_name });\n",
+			"\n      await %s(id).update(property_value_map, { 'token_name': token_name });\n",
 			info.Table_name,
 		),
 	)
 	check(err)
 
 	// tail
+	_, err = f.WriteString("\n    }catch (e) {\n      if(await _callErrorListeners(ctx, e) > 0)\n        return;\n\n      rethrow;\n    }\n")
+	check(err)
 	_, err = f.WriteString("  }\n\n")
 	check(err)
 }
@@ -548,7 +560,9 @@ func genCrudApi_getById (
 	check(err)
 
 	// write codes
-	_, err = f.WriteString("\n    await _callPreCallListeners();\n")
+	_, err = f.WriteString("\n    try {\n")
+	check(err)
+	_, err = f.WriteString("      await _callPreCallListeners();\n")
 	check(err)
 
 	_, err = f.WriteString(
@@ -557,6 +571,8 @@ func genCrudApi_getById (
 	check(err)
 
 	// tail
+	_, err = f.WriteString("\n    }catch (e) {\n      if(await _callErrorListeners(ctx, e) > 0)\n        return null;\n\n      rethrow;\n    }\n")
+	check(err)
 	_, err = f.WriteString("  }\n\n")
 	check(err)
 }
@@ -572,7 +588,7 @@ func genCrudApi_get (
 	// head
 	_, err := f.WriteString(
 		fmt.Sprintf(
-			"  static Future<List<%[1]sVM>> get_%[2]s (dynamic ctx,{\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n\n      required dynamic options,\n      dynamic  order_query,\n  }) async {",
+			"  static Future<List<%[1]sVM>> get_%[2]s (dynamic ctx, {\n      // null : use WseModel.token\n      // other: use named-token\n      String? token_name,\n\n      required dynamic options,\n      dynamic  order_query,\n  }) async {",
 			info.Table_name,
 			makeFuncNameFromPath(path),
 		),
@@ -580,7 +596,9 @@ func genCrudApi_get (
 	check(err)
 
 	// write codes
-	_, err = f.WriteString("\n    await _callPreCallListeners();\n")
+	_, err = f.WriteString("\n    try {\n")
+	check(err)
+	_, err = f.WriteString("      await _callPreCallListeners();\n")
 	check(err)
 
 	_, err = f.WriteString(
@@ -589,6 +607,8 @@ func genCrudApi_get (
 	check(err)
 
 	// tail
+	_, err = f.WriteString("\n    }catch (e) {\n      if(await _callErrorListeners(ctx, e) > 0)\n        return [];\n\n      rethrow;\n    }\n")
+	check(err)
 	_, err = f.WriteString("  }\n\n")
 	check(err)
 }
@@ -678,11 +698,13 @@ func genCrudApi_create (
 	check(err)
 
 	/// codes
-	_, err = f.WriteString("    await _callPreCallListeners();\n\n")
+	_, err = f.WriteString("    try {\n")
+	check(err)
+	_, err = f.WriteString("      await _callPreCallListeners();\n\n")
 	check(err)
 
 	// write property_value_map - required
-	_, err = f.WriteString("    var property_value_map = <Property, dynamic>{\n")
+	_, err = f.WriteString("      var property_value_map = <Property, dynamic>{\n")
 	check(err)
 	required_schema := funk.Filter(
 		info.Schema,
@@ -704,7 +726,7 @@ func genCrudApi_create (
 		}
 		_, err = f.WriteString(
 			fmt.Sprintf(
-				"      %[1]s.em.%-[2]*[3]s: %[3]s,\n",
+				"        %[1]s.em.%-[2]*[3]s: %[3]s,\n",
 				info.Table_name,
 				prop_max_len,
 				makePropName(field),
@@ -712,7 +734,7 @@ func genCrudApi_create (
 		)
 		check(err)
 	}
-	_, err = f.WriteString("    };\n")
+	_, err = f.WriteString("      };\n")
 	check(err)
 
 	// write property_value_map - optional
@@ -723,7 +745,7 @@ func genCrudApi_create (
 		if sch.Null == true {
 			_, err = f.WriteString(
 				fmt.Sprintf(
-					"    if (%[2]s != null)\n      property_value_map[%[1]s.em.%[2]s] = %[2]s;\n",
+					"      if (%[2]s != null)\n        property_value_map[%[1]s.em.%[2]s] = %[2]s;\n",
 					info.Table_name,
 					makePropName(sch.Field),
 				),
@@ -737,13 +759,13 @@ func genCrudApi_create (
 	// create model
 	post_on_create_str := ""
 	if non_model_data_jsonex != nil {
-		_, err = f.WriteString("    var non_model_data = <String, dynamic>{};\n")
+		_, err = f.WriteString("      var non_model_data = <String, dynamic>{};\n")
 		check(err)
-		post_on_create_str = "\n          'postOnCreate': (Model m, dynamic res_json) { non_model_data = res_json['(non_model_data)'] as Map<String, dynamic>; },"
+		post_on_create_str = "\n            'postOnCreate': (Model m, dynamic res_json) { non_model_data = res_json['(non_model_data)'] as Map<String, dynamic>; },"
 	}
 	_, err = f.WriteString(
 		fmt.Sprintf(
-			"    final m = (await Model.createModel(\n        %[1]s.mh,\n        property_value_map,\n        user_data: {\n          'token_name': token_name,%[2]s\n        }\n    )) as %[1]s;\n",
+			"      final m = (await Model.createModel(\n          %[1]s.mh,\n          property_value_map,\n          user_data: {\n            'token_name': token_name,%[2]s\n          }\n      )) as %[1]s;\n",
 			info.Table_name,
 			post_on_create_str,
 		),
@@ -753,7 +775,7 @@ func genCrudApi_create (
 	// return view model
 	_, err = f.WriteString(
 		fmt.Sprintf(
-			"    final vm = %sVM({\n",
+			"      final vm = %sVM({\n",
 			info.Table_name,
 		),
 	)
@@ -770,7 +792,7 @@ func genCrudApi_create (
 	for _, sch := range info.Schema {
 		_, err = f.WriteString(
 			fmt.Sprintf(
-				"      %-[1]*[2]s: m.%[3]s,\n",
+				"        %-[1]*[2]s: m.%[3]s,\n",
 				field_max_len+2,
 				"'"+sch.Field+"'",
 				makePropName(sch.Field),
@@ -782,7 +804,7 @@ func genCrudApi_create (
 	if non_model_data_jsonex != nil {
 		_, err = f.WriteString(
 			fmt.Sprintf(
-				"      %-[1]*[2]s: non_model_data,\n",
+				"        %-[1]*[2]s: non_model_data,\n",
 				field_max_len+2,
 				"'(non_model_data)'",
 			),
@@ -791,7 +813,13 @@ func genCrudApi_create (
 	}
 
 	// tail
-	_, err = f.WriteString("    });\n    await vm.init();\n    return vm;\n  }\n\n")
+	_, err = f.WriteString("      });\n      await vm.init();\n      return vm;\n")
+	check(err)
+
+	_, err = f.WriteString("\n    }catch (e) {\n      await _callErrorListeners(ctx, e);\n      rethrow;\n    }\n")
+	check(err)
+
+	_, err = f.WriteString("  }\n\n")
 	check(err)
 }
 
@@ -945,8 +973,8 @@ var re_md_code = regexp.MustCompile("```javascript\n((?:.|\\s)*)```\n")
 var api_head_str = `
 // for listeners
 typedef Future<void> ApiOnPreCall ();
-typedef bool ApiOnCatchError (Exception e);
-typedef Future<void> ApiOnError (dynamic ctx, Exception e);
+typedef bool ApiOnCatchError (Object e);
+typedef Future<void> ApiOnError (dynamic ctx, Object e);
 class _ErrorListener {
   ApiOnCatchError on_catch_err;
   ApiOnError on_err;
@@ -986,7 +1014,7 @@ class Api {
   static void clearErrorListener () {
     _error_listeners.clear();
   }
-  static Future<int> _callErrorListeners (dynamic ctx, Exception e) async {
+  static Future<int> _callErrorListeners (dynamic ctx, Object e) async {
     var called_cnt = 0;
     for (final l in _error_listeners) {
       if (l.on_catch_err(e) == false)
@@ -1004,44 +1032,44 @@ class Api {
 `
 
 var api_crud_get_codes_fmt = `
-    final res_jsons = await WseModel.find(
-        %[1]s.mh,
-        options,
-        token_name : token_name,
-        order_query: order_query,
-    );
-    final vms = res_jsons.map((e) => %[1]sVM(e)).toList();
-    for (final v in vms)
-      await v.init();
-    return vms;
+      final res_jsons = await WseModel.find(
+          %[1]s.mh,
+          options,
+          token_name : token_name,
+          order_query: order_query,
+      );
+      final vms = res_jsons.map((e) => %[1]sVM(e)).toList();
+      for (final v in vms)
+        await v.init();
+      return vms;
 `
 
 var api_crud_get_by_id_codes_fmt = `
-    final res_jsons = await WseModel.findById(
-        %[1]s.mh,
-        id,
-        token_name: token_name,
-        options   : options,
-        need_count: need_count,
-    );
-    if (res_jsons.isEmpty)
-      return null;
+      final res_jsons = await WseModel.findById(
+          %[1]s.mh,
+          id,
+          token_name: token_name,
+          options   : options,
+          need_count: need_count,
+      );
+      if (res_jsons.isEmpty)
+        return null;
 
-    final vm = %[1]sVM(res_jsons[0]);
-    await vm.init();
-    return vm;
+      final vm = %[1]sVM(res_jsons[0]);
+      await vm.init();
+      return vm;
 `
 
 var api_custom_call_api_fmt = `
-    var token = WseModel.token;
-    if (token_name != null)
-      token = WseModel.getNamedToken(token_name);
+      var token = WseModel.token;
+      if (token_name != null)
+        token = WseModel.getNamedToken(token_name);
 
-    final res = await WseApiCall.%s(
-      '${WseModel.api_server_address}%s',
-      token: token,
-      %s: params,
-    );
+      final res = await WseApiCall.%s(
+        '${WseModel.api_server_address}%s',
+        token: token,
+        %s: params,
+      );
 `
 
 type ApiDocInfo struct {
