@@ -1003,7 +1003,7 @@ class Api {
 
   //// error listener
   static final _error_listeners = <_ErrorListener>[];
-  static _ErrorListener addErrorListener (ApiOnCatchError on_catch_err, ApiOnError, on_err) {
+  static _ErrorListener addErrorListener (ApiOnCatchError on_catch_err, ApiOnError on_err) {
     final l = _ErrorListener(on_catch_err, on_err);
     _error_listeners.add(l);
     return l;
