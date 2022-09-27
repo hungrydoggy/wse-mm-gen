@@ -10,7 +10,7 @@ import (
 
 	funk "github.com/thoas/go-funk"
 
-	table_schema "../table_schema"
+	table_schema "wse_mm_gen/table_schema"
 )
 
 func GenApi (tablename_schemainfo_map map[string]*table_schema.SchemaInfo) {

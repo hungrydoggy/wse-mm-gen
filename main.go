@@ -12,8 +12,8 @@ import (
 	godotenv "github.com/joho/godotenv"
 	funk "github.com/thoas/go-funk"
 
-	gen "./gen"
-	table_schema "./table_schema"
+	gen "wse_mm_gen/gen"
+	table_schema "wse_mm_gen/table_schema"
 )
 
 func main() {
